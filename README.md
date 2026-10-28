@@ -1,0 +1,91 @@
+# Git GUI
+
+一个**轻量、可定制、渐进式演进**的 Git 桌面客户端。基于 Tauri 2 + React 19 + shadcn/ui，直接调用系统 `git`，按需慢慢长出你日常需要的功能。
+
+## 功能
+
+### 项目管理
+
+- 一个 Project = 一个本地目录（必须是 git 仓库，添加时自动定位到仓库根目录）
+- 单窗口：所有项目并列展示在左侧栏，同一时间选中/管理一个
+- 可随时移除（只移出列表，不动磁盘文件）
+- 侧栏实时显示每个项目的当前分支与是否有未提交改动
+
+### 模块（主区域，可扩展）
+
+| 模块 | 说明 |
+| --- | --- |
+| **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
+| **工作区** | 当前 diff：已暂存 / 未暂存 / 未跟踪三组文件，点击查看 staged / unstaged / 全新增 diff，支持暂存与取消暂存（单个或整组） |
+
+> 新模块通过 `apps/desktop/src/modules/registry.ts` 注册即可接入，见下文。
+
+## 技术栈
+
+- **pnpm monorepo**：`apps/*` + `packages/*`
+- **Tauri 2**（Rust 后端执行系统 git 命令，无 libgit2 依赖）
+- **React 19 + TypeScript + Vite 8**
+- **Tailwind CSS v4 + shadcn/ui**（radix 基座）
+- **zustand** 状态管理，**sonner** 错误提示
+
+## 目录结构
+
+```
+git-gui/
+├── apps/
+│   └── desktop/                 # Tauri 桌面应用
+│       ├── src/                 # 前端
+│       │   ├── components/      # 侧栏/主区域/DiffViewer 等共享组件
+│       │   ├── modules/         # 主区域模块（registry.ts 注册）
+│       │   │   ├── branch-compare/   # 模块1：分支对比
+│       │   │   └── worktree/         # 模块2：工作区
+│       │   ├── stores/          # zustand（projects / compare）
+│       │   └── lib/             # IPC 封装、hooks
+│       └── src-tauri/           # Rust 后端
+│           └── src/
+│               ├── commands.rs  # Tauri commands（前后端契约）
+│               ├── state.rs     # 项目列表持久化
+│               └── git/         # git 输出解析（status/refs/diff，含单元测试）
+└── packages/
+    └── core/                    # @git-gui/core：领域类型 + unified diff 解析器（vitest 测试）
+```
+
+## 开发
+
+前置要求：Node ≥ 20、pnpm、Rust（rustup）、系统 `git`。
+
+```bash
+pnpm install          # 安装依赖
+pnpm dev:app          # 启动桌面应用（tauri dev，热更新）
+pnpm --filter @git-gui/desktop dev   # 仅启动前端 dev server
+
+pnpm test             # packages/core 的 vitest 测试
+pnpm check            # 全部 TypeScript 类型检查
+pnpm check:rs         # Rust 单元测试 + cargo check
+
+pnpm build:app        # 打包桌面应用（dmg/app）
+```
+
+项目列表保存在系统应用配置目录（macOS：`~/Library/Application Support/com.gitgui.desktop/projects.json`）。
+
+## 架构说明
+
+### 前后端契约
+
+- Rust 侧 `src-tauri/src/commands.rs` 中的每个 `#[tauri::command]` 对应前端 `src/lib/ipc.ts` 中的一个类型化封装；领域类型定义在 `packages/core/src/types.ts`（与 Rust 结构体的 camelCase serde 输出一一对应，修改需两侧同步）。
+- 所有 git 输出解析都基于机器友好的 `-z` / `--porcelain=v2` 格式，rename 字段顺序等约定均以真实 git 输出的单元测试固化（`git/status.rs`、`git/diff.rs`）。
+
+### 如何新增一个模块
+
+1. 在 `apps/desktop/src/modules/` 下新建目录，实现组件：`function MyModule({ project }: ModuleProps)`
+2. 在 `modules/registry.ts` 的 `MODULES` 数组中注册（id、标题、图标、组件）
+3. 完成。模块自行通过 `ipc` 调用后端命令；需要新数据时在 `commands.rs` 加一个 command 并在 `ipc.ts` 加封装
+
+## 路线图（渐进式）
+
+- [ ] 模块·提交：写 commit message 并提交
+- [ ] 模块·历史：分支的提交时间线（graph）
+- [ ] 工作区：放弃更改、stash
+- [ ] 分支对比：按目录折叠文件树、关键词过滤
+- [ ] 侧栏：文件系统监听自动刷新
+- [ ] i18n / 设置面板 / 自定义模块顺序

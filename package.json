@@ -1,0 +1,19 @@
+{
+  "name": "git-gui-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "轻量、可定制的 Git 桌面客户端（Tauri + React）",
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @git-gui/desktop dev",
+    "dev:app": "pnpm --filter @git-gui/desktop tauri dev",
+    "build": "pnpm -r build",
+    "build:app": "pnpm --filter @git-gui/desktop tauri build",
+    "check": "pnpm -r check",
+    "test": "pnpm -r test",
+    "check:rs": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml && cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml"
+  }
+}
