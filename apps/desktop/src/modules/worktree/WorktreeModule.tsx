@@ -300,7 +300,7 @@ export function WorktreeModule({ project }: ModuleProps) {
         />
       ) : (
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-          <ResizablePanel defaultSize={32} minSize={20} maxSize={50}>
+          <ResizablePanel defaultSize="32%" minSize="20%" maxSize="50%">
             <div className="h-full overflow-y-auto pt-1">
               <Group
                 kind="staged"
@@ -329,7 +329,7 @@ export function WorktreeModule({ project }: ModuleProps) {
             </div>
           </ResizablePanel>
           <ResizableHandle />
-          <ResizablePanel defaultSize={68}>
+          <ResizablePanel defaultSize="68%">
             <DiffViewer
               text={diff.data}
               loading={diff.loading}

@@ -122,9 +122,13 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply h-full overflow-hidden bg-background text-foreground;
     }
   html {
-    @apply font-sans;
+    @apply h-full font-sans;
+    }
+  #root {
+    /* react-resizable-panels 使用内联 height: 100%，需要完整的父级高度链。 */
+    @apply h-full;
     }
 }

@@ -247,7 +247,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
         />
       ) : (
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-          <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+          <ResizablePanel defaultSize="30%" minSize="20%" maxSize="50%">
             <Tabs
               value={listTab}
               onValueChange={(v) => setListTab(v as "files" | "commits")}
@@ -308,7 +308,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
             </Tabs>
           </ResizablePanel>
           <ResizableHandle />
-          <ResizablePanel defaultSize={70}>
+          <ResizablePanel defaultSize="70%">
             <DiffViewer
               text={diff.data}
               loading={diff.loading}
