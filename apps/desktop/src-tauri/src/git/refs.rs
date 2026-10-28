@@ -86,13 +86,14 @@ fn default_branch(repo: &str, list: &BranchList) -> Option<String> {
             return Some(cand.to_string());
         }
     }
-    list.branches.iter().find(|b| !b.is_remote).map(|b| b.name.clone())
+    list.branches
+        .iter()
+        .find(|b| !b.is_remote)
+        .map(|b| b.name.clone())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn parse_for_each_ref_output() {
         // 真实输出样本：`%(HEAD)` 为 "* " 或 "  "，字段以 \0 分隔，记录以 \n 分隔

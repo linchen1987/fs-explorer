@@ -7,6 +7,7 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 pub mod diff;
+pub mod history;
 pub mod refs;
 pub mod status;
 

@@ -110,3 +110,24 @@ export interface CompareResult {
   totalAdditions: number
   totalDeletions: number
 }
+
+/** 历史记录中的提交，额外携带拓扑和 ref 装饰信息 */
+export interface HistoryCommit extends Commit {
+  /** 完整父提交 sha；根提交为空数组，合并提交通常包含两个或更多 */
+  parentShas: string[]
+  /** 指向该提交的分支、HEAD、tag 等短名 */
+  refs: string[]
+}
+
+export interface HistoryPage {
+  commits: HistoryCommit[]
+  hasMore: boolean
+  nextSkip: number
+}
+
+/** 单个提交相对第一父提交的文件变化；根提交相对空树 */
+export interface CommitChanges {
+  files: FileChange[]
+  totalAdditions: number
+  totalDeletions: number
+}

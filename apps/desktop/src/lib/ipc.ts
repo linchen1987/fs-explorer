@@ -5,7 +5,9 @@
 import { invoke } from "@tauri-apps/api/core"
 import type {
   BranchList,
+  CommitChanges,
   CompareResult,
+  HistoryPage,
   Project,
   WorktreeStatus,
 } from "@git-gui/core"
@@ -23,6 +25,23 @@ export const ipc = {
 
   compareRefs: (repo: string, base: string, head: string) =>
     invoke<CompareResult>("compare_refs", { repo, base, head }),
+
+  /** revision=null 表示所有本地及远程跟踪分支 */
+  listCommits: (
+    repo: string,
+    revision: string | null,
+    skip: number,
+    limit: number,
+  ) => invoke<HistoryPage>("list_commits", { repo, revision, skip, limit }),
+  getCommitChanges: (repo: string, sha: string) =>
+    invoke<CommitChanges>("get_commit_changes", { repo, sha }),
+  diffCommitFile: (
+    repo: string,
+    sha: string,
+    path: string,
+    oldPath: string | null,
+  ) => invoke<string>("diff_commit_file", { repo, sha, path, oldPath }),
+
   diffRefsFile: (
     repo: string,
     base: string,

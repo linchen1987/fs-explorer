@@ -1,6 +1,6 @@
 //! 暴露给前端的 Tauri commands（薄封装，逻辑都在 git/state 模块中）。
 
-use crate::state::{now_rfc3339, AppState, Project};
+use crate::state::{AppState, Project, now_rfc3339};
 use tauri::State;
 
 #[tauri::command]
@@ -58,7 +58,9 @@ pub async fn remove_project(state: State<'_, AppState>, path: String) -> Result<
 }
 
 #[tauri::command]
-pub async fn get_worktree_status(repo: String) -> Result<crate::git::status::WorktreeStatus, String> {
+pub async fn get_worktree_status(
+    repo: String,
+) -> Result<crate::git::status::WorktreeStatus, String> {
     crate::git::status::status(&repo)
 }
 
@@ -74,6 +76,34 @@ pub async fn compare_refs(
     head: String,
 ) -> Result<crate::git::diff::CompareResult, String> {
     crate::git::diff::compare_refs(&repo, &base, &head)
+}
+
+#[tauri::command]
+pub async fn list_commits(
+    repo: String,
+    revision: Option<String>,
+    skip: usize,
+    limit: usize,
+) -> Result<crate::git::history::HistoryPage, String> {
+    crate::git::history::list_commits(&repo, revision.as_deref(), skip, limit)
+}
+
+#[tauri::command]
+pub async fn get_commit_changes(
+    repo: String,
+    sha: String,
+) -> Result<crate::git::history::CommitChanges, String> {
+    crate::git::history::get_commit_changes(&repo, &sha)
+}
+
+#[tauri::command]
+pub async fn diff_commit_file(
+    repo: String,
+    sha: String,
+    path: String,
+    old_path: Option<String>,
+) -> Result<String, String> {
+    crate::git::history::diff_commit_file(&repo, &sha, &path, old_path.as_deref())
 }
 
 #[tauri::command]

@@ -17,6 +17,7 @@
 | --- | --- |
 | **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
 | **工作区** | 当前 diff：已暂存 / 未暂存 / 未跟踪三组文件，点击查看 staged / unstaged / 全新增 diff，支持暂存与取消暂存（单个或整组） |
+| **提交历史** | 当前分支或所有分支的提交拓扑图，显示分支/tag 装饰，按 80 条分页加载；点击提交查看元信息、变更文件和单文件 diff（合并提交相对第一父提交） |
 
 > 新模块通过 `apps/desktop/src/modules/registry.ts` 注册即可接入，见下文。
 
@@ -38,16 +39,17 @@ git-gui/
 │       │   ├── components/      # 侧栏/主区域/DiffViewer 等共享组件
 │       │   ├── modules/         # 主区域模块（registry.ts 注册）
 │       │   │   ├── branch-compare/   # 模块1：分支对比
-│       │   │   └── worktree/         # 模块2：工作区
+│       │   │   ├── worktree/         # 模块2：工作区
+│       │   │   └── history/          # 模块3：提交历史与拓扑图
 │       │   ├── stores/          # zustand（projects / compare）
 │       │   └── lib/             # IPC 封装、hooks
 │       └── src-tauri/           # Rust 后端
 │           └── src/
 │               ├── commands.rs  # Tauri commands（前后端契约）
 │               ├── state.rs     # 项目列表持久化
-│               └── git/         # git 输出解析（status/refs/diff，含单元测试）
+│               └── git/         # git 输出解析（status/refs/diff/history，含单元测试）
 └── packages/
-    └── core/                    # @git-gui/core：领域类型 + unified diff 解析器（vitest 测试）
+    └── core/                    # @git-gui/core：领域类型 + Diff/提交图解析（vitest 测试）
 ```
 
 ## 开发
@@ -73,7 +75,7 @@ pnpm build:app        # 打包桌面应用（dmg/app）
 ### 前后端契约
 
 - Rust 侧 `src-tauri/src/commands.rs` 中的每个 `#[tauri::command]` 对应前端 `src/lib/ipc.ts` 中的一个类型化封装；领域类型定义在 `packages/core/src/types.ts`（与 Rust 结构体的 camelCase serde 输出一一对应，修改需两侧同步）。
-- 所有 git 输出解析都基于机器友好的 `-z` / `--porcelain=v2` 格式，rename 字段顺序等约定均以真实 git 输出的单元测试固化（`git/status.rs`、`git/diff.rs`）。
+- 文件状态与文件列表使用 `-z` / `--porcelain=v2` 等机器友好格式；提交历史携带 parent SHA 与 ref 装饰，前端据此计算拓扑。rename、merge、root commit 等约定以真实 git 输出的单元测试固化。
 
 ### 如何新增一个模块
 
@@ -84,7 +86,7 @@ pnpm build:app        # 打包桌面应用（dmg/app）
 ## 路线图（渐进式）
 
 - [ ] 模块·提交：写 commit message 并提交
-- [ ] 模块·历史：分支的提交时间线（graph）
+- [x] 模块·历史：分支的提交时间线（graph）
 - [ ] 工作区：放弃更改、stash
 - [ ] 分支对比：按目录折叠文件树、关键词过滤
 - [ ] 侧栏：文件系统监听自动刷新

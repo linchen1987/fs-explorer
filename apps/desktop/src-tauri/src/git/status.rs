@@ -158,7 +158,10 @@ mod tests {
 \0? untracked.txt\0";
         let st = parse_status_v2(raw).unwrap();
         assert_eq!(st.branch.as_deref(), Some("feature"));
-        assert_eq!(st.head_sha.as_deref(), Some("e38f877e504c330e4b38fb7971d4e8adf8ec6864"));
+        assert_eq!(
+            st.head_sha.as_deref(),
+            Some("e38f877e504c330e4b38fb7971d4e8adf8ec6864")
+        );
         assert_eq!(st.upstream.as_deref(), Some("origin/feature"));
         assert_eq!(st.ahead, Some(2));
         assert_eq!(st.behind, Some(1));

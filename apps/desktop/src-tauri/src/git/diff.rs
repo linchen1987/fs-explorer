@@ -36,7 +36,7 @@ pub struct CompareResult {
     pub total_deletions: i64,
 }
 
-fn verify_ref(repo: &str, rev: &str) -> Result<(), String> {
+pub(crate) fn verify_ref(repo: &str, rev: &str) -> Result<(), String> {
     let spec = format!("{rev}^{{commit}}");
     // rev-parse --verify --quiet 在引用不存在时返回 1；不能把 1 当作成功，
     // 否则无效引用会一路传到 log/diff，暴露为难以理解的 range 解析错误。
@@ -145,7 +145,13 @@ pub fn parse_numstat_z(raw: &str) -> Vec<(Option<i64>, Option<i64>, Option<Strin
         let adds = parts.next().unwrap_or("-");
         let dels = parts.next().unwrap_or("-");
         let path = parts.next().unwrap_or("");
-        let parse = |s: &str| if s == "-" { None } else { s.parse::<i64>().ok() };
+        let parse = |s: &str| {
+            if s == "-" {
+                None
+            } else {
+                s.parse::<i64>().ok()
+            }
+        };
         let (a, d) = (parse(adds), parse(dels));
         if path.is_empty() {
             // rename：后两个 token 是 旧路径、新路径
@@ -164,13 +170,20 @@ pub fn parse_numstat_z(raw: &str) -> Vec<(Option<i64>, Option<i64>, Option<Strin
     out
 }
 
-fn changed_files(repo: &str, base: &str, head: &str) -> Result<(Vec<FileChange>, i64, i64), String> {
+fn changed_files(
+    repo: &str,
+    base: &str,
+    head: &str,
+) -> Result<(Vec<FileChange>, i64, i64), String> {
     let range = format!("{base}...{head}");
     let ns = super::run_git(
         Some(repo),
         &["diff", "--no-color", "--name-status", "-M", "-z", &range],
     )?;
-    let stats = super::run_git(Some(repo), &["diff", "--no-color", "--numstat", "-M", "-z", &range])?;
+    let stats = super::run_git(
+        Some(repo),
+        &["diff", "--no-color", "--numstat", "-M", "-z", &range],
+    )?;
 
     let mut stat_map: HashMap<String, (Option<i64>, Option<i64>)> = HashMap::new();
     for (a, d, _old, new) in parse_numstat_z(&stats) {
@@ -205,7 +218,15 @@ pub fn diff_refs_file(
     old_path: Option<&str>,
 ) -> Result<String, String> {
     let range = format!("{base}...{head}");
-    let mut args: Vec<&str> = vec!["diff", "--no-color", "-M", "--unified=3", &range, "--", path];
+    let mut args: Vec<&str> = vec![
+        "diff",
+        "--no-color",
+        "-M",
+        "--unified=3",
+        &range,
+        "--",
+        path,
+    ];
     if let Some(op) = old_path {
         if op != path {
             args.push(op);
@@ -297,7 +318,12 @@ mod tests {
         assert_eq!(out[1], (Some(1), Some(0), None, "new.txt".to_string()));
         assert_eq!(
             out[2],
-            (Some(0), Some(0), Some("a.txt".to_string()), "src/a.txt".to_string())
+            (
+                Some(0),
+                Some(0),
+                Some("a.txt".to_string()),
+                "src/a.txt".to_string()
+            )
         );
         assert_eq!(out[3], (Some(1), Some(1), None, "src/b.txt".to_string()));
     }
@@ -349,7 +375,14 @@ mod tests {
         assert_eq!(result.total_deletions, 0);
 
         // rename 的单文件 diff 应包含 rename from/to 头
-        let text = diff_refs_file(repo, "main", "feature", "moved.txt", moved.old_path.as_deref()).unwrap();
+        let text = diff_refs_file(
+            repo,
+            "main",
+            "feature",
+            "moved.txt",
+            moved.old_path.as_deref(),
+        )
+        .unwrap();
         assert!(text.contains("rename from a.txt"), "actual: {text}");
         assert!(text.contains("rename to moved.txt"));
 
