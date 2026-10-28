@@ -5,13 +5,13 @@ import {
   CircleAlert,
   FolderGit2,
   GitBranch,
-  GitGraph,
   MoreHorizontal,
   Plus,
   RefreshCw,
   Trash2,
 } from "lucide-react"
 import type { Project } from "@git-gui/core"
+import logoUrl from "@/assets/logo.svg"
 import { errText } from "@/lib/async"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -178,7 +178,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-12 shrink-0 items-center gap-2 px-3">
-        <GitGraph className="size-4" />
+        <img src={logoUrl} alt="" draggable={false} className="size-5 shrink-0 select-none" />
         <span className="text-sm font-semibold tracking-tight">Git GUI</span>
         <div className="ml-auto flex items-center gap-0.5">
           <Tooltip>

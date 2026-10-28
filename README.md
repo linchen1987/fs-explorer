@@ -66,6 +66,7 @@ pnpm check            # 全部 TypeScript 类型检查
 pnpm check:rs         # Rust 单元测试 + cargo check
 
 pnpm build:app        # 打包桌面应用（dmg/app）
+pnpm install:local    # macOS：构建并安装到 /Applications/Git GUI.app（替换已有版本）
 ```
 
 项目列表保存在系统应用配置目录（macOS：`~/Library/Application Support/com.gitgui.desktop/projects.json`）。

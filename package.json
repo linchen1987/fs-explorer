@@ -12,6 +12,7 @@
     "dev:app": "pnpm --filter @git-gui/desktop tauri dev",
     "build": "pnpm -r build",
     "build:app": "pnpm --filter @git-gui/desktop tauri build",
+    "install:local": "pnpm --filter @git-gui/desktop tauri:build:app && rm -rf \"/Applications/Git GUI.app\" && cp -R \"apps/desktop/src-tauri/target/release/bundle/macos/Git GUI.app\" /Applications/",
     "check": "pnpm -r check",
     "test": "pnpm -r test",
     "check:rs": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml && cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml"
