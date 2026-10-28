@@ -167,7 +167,8 @@ export function MainArea() {
             forceMount
             className={cn("min-h-0 flex-1 outline-none data-[state=inactive]:hidden")}
           >
-            <m.component project={project} />
+            {/* 切换项目时重挂载模块，避免旧仓库的异步数据和选择状态串入新仓库。 */}
+            <m.component key={project.path} project={project} />
           </TabsContent>
         ))}
       </Tabs>

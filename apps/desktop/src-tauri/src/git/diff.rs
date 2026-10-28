@@ -38,7 +38,9 @@ pub struct CompareResult {
 
 fn verify_ref(repo: &str, rev: &str) -> Result<(), String> {
     let spec = format!("{rev}^{{commit}}");
-    super::run_git_ext(Some(repo), &["rev-parse", "--verify", "--quiet", &spec], &[1])
+    // rev-parse --verify --quiet 在引用不存在时返回 1；不能把 1 当作成功，
+    // 否则无效引用会一路传到 log/diff，暴露为难以理解的 range 解析错误。
+    super::run_git(Some(repo), &["rev-parse", "--verify", "--quiet", &spec])
         .map(|_| ())
         .map_err(|_| format!("无效的分支或引用: {rev}"))
 }
@@ -351,7 +353,10 @@ mod tests {
         assert!(text.contains("rename from a.txt"), "actual: {text}");
         assert!(text.contains("rename to moved.txt"));
 
-        // verify_ref 对无效引用报错
-        assert!(compare_refs(repo, "main", "no-such-branch").is_err());
+        // verify_ref 必须拦截无效引用，而不是把它当成退出码 1 的“成功”。
+        assert!(verify_ref(repo, "main").is_ok());
+        assert!(verify_ref(repo, "no-such-branch").is_err());
+        let err = compare_refs(repo, "main", "no-such-branch").unwrap_err();
+        assert!(err.contains("无效的分支或引用"), "actual: {err}");
     }
 }
