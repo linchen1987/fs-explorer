@@ -1,9 +1,9 @@
 import type { LucideIcon } from "lucide-react"
 import { FileDiff, GitCompare, History } from "lucide-react"
 import type { Project } from "@git-gui/core"
-import { BranchCompareModule } from "./branch-compare/BranchCompareModule"
-import { HistoryModule } from "./history/HistoryModule"
 import { WorktreeModule } from "./worktree/WorktreeModule"
+import { HistoryModule } from "./history/HistoryModule"
+import { BranchCompareModule } from "./branch-compare/BranchCompareModule"
 
 export interface ModuleProps {
   project: Project
@@ -22,12 +22,6 @@ export interface ModuleDef {
  */
 export const MODULES: ModuleDef[] = [
   {
-    id: "branch-compare",
-    title: "分支对比",
-    icon: GitCompare,
-    component: BranchCompareModule,
-  },
-  {
     id: "worktree",
     title: "工作区",
     icon: FileDiff,
@@ -38,5 +32,11 @@ export const MODULES: ModuleDef[] = [
     title: "提交历史",
     icon: History,
     component: HistoryModule,
+  },
+  {
+    id: "branch-compare",
+    title: "分支对比",
+    icon: GitCompare,
+    component: BranchCompareModule,
   },
 ]

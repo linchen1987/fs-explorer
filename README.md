@@ -15,9 +15,9 @@
 
 | 模块 | 说明 |
 | --- | --- |
-| **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
 | **工作区** | 当前 diff：已暂存 / 未暂存 / 未跟踪三组文件，点击查看 staged / unstaged / 全新增 diff，支持暂存与取消暂存（单个或整组） |
 | **提交历史** | 当前分支或所有分支的提交拓扑图，显示分支/tag 装饰，按 80 条分页加载；点击提交查看元信息、变更文件和单文件 diff（合并提交相对第一父提交） |
+| **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
 
 > 新模块通过 `apps/desktop/src/modules/registry.ts` 注册即可接入，见下文。
 
@@ -68,6 +68,8 @@ pnpm check:rs         # Rust 单元测试 + cargo check
 pnpm build:app        # 打包桌面应用（dmg/app）
 pnpm install:local    # macOS：构建并安装到 /Applications/Git GUI.app（替换已有版本）
 ```
+
+> macOS 开发模式的 Dock 图标在 Rust 编译时内嵌。修改图标后需要完全退出并重新执行 `pnpm dev:app`，仅刷新前端不会更新 Dock。
 
 项目列表保存在系统应用配置目录（macOS：`~/Library/Application Support/com.gitgui.desktop/projects.json`）。
 
