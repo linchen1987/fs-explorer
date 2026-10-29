@@ -1,4 +1,4 @@
-//! 暴露给前端的 Tauri commands（薄封装，逻辑都在 git/state 模块中）。
+//! 暴露给前端的 Tauri commands（薄封装，逻辑都在 files/git/state 模块中）。
 
 use crate::state::{AppState, Project, now_rfc3339};
 use tauri::State;
@@ -55,6 +55,24 @@ pub async fn remove_project(state: State<'_, AppState>, path: String) -> Result<
         return Err("项目不存在".to_string());
     }
     state.save(&projects)
+}
+
+#[tauri::command]
+pub async fn list_project_files(repo: String) -> Result<Vec<String>, String> {
+    crate::files::list_files(&repo)
+}
+
+#[tauri::command]
+pub async fn read_project_file(
+    repo: String,
+    path: String,
+) -> Result<crate::files::FileContent, String> {
+    crate::files::read_file(&repo, &path)
+}
+
+#[tauri::command]
+pub async fn save_project_file(repo: String, path: String, content: String) -> Result<(), String> {
+    crate::files::save_file(&repo, &path, &content)
 }
 
 #[tauri::command]

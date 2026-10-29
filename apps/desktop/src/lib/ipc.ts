@@ -9,6 +9,7 @@ import type {
   CompareResult,
   HistoryPage,
   Project,
+  ProjectFileContent,
   WorktreeStatus,
 } from "@git-gui/core"
 
@@ -18,6 +19,13 @@ export const ipc = {
   listProjects: () => invoke<Project[]>("list_projects"),
   addProject: (path: string) => invoke<Project>("add_project", { path }),
   removeProject: (path: string) => invoke<void>("remove_project", { path }),
+
+  listProjectFiles: (repo: string) =>
+    invoke<string[]>("list_project_files", { repo }),
+  readProjectFile: (repo: string, path: string) =>
+    invoke<ProjectFileContent>("read_project_file", { repo, path }),
+  saveProjectFile: (repo: string, path: string, content: string) =>
+    invoke<void>("save_project_file", { repo, path, content }),
 
   getWorktreeStatus: (repo: string) =>
     invoke<WorktreeStatus>("get_worktree_status", { repo }),

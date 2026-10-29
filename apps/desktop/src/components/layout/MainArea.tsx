@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
@@ -164,7 +164,9 @@ export function MainArea() {
             className={cn("min-h-0 flex-1 outline-none data-[state=inactive]:hidden")}
           >
             {/* 切换项目时重挂载模块，避免旧仓库的异步数据和选择状态串入新仓库。 */}
-            <m.component key={project.path} project={project} />
+            <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载模块…</div>}>
+              <m.component key={project.path} project={project} />
+            </Suspense>
           </TabsContent>
         ))}
       </Tabs>

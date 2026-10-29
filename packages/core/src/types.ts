@@ -131,3 +131,13 @@ export interface CommitChanges {
   totalAdditions: number
   totalDeletions: number
 }
+
+/** 文件查看器读取结果；文本存放在 text，图片/视频使用 base64 data。 */
+export interface ProjectFileContent {
+  path: string
+  size: number
+  kind: "text" | "image" | "video" | "binary"
+  text: string | null
+  data: string | null
+  mime: string | null
+}

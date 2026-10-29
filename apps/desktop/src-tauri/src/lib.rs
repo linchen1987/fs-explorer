@@ -1,4 +1,5 @@
 mod commands;
+mod files;
 mod git;
 mod state;
 
@@ -23,6 +24,9 @@ pub fn run() {
             commands::list_projects,
             commands::add_project,
             commands::remove_project,
+            commands::list_project_files,
+            commands::read_project_file,
+            commands::save_project_file,
             commands::get_worktree_status,
             commands::list_branches,
             commands::compare_refs,

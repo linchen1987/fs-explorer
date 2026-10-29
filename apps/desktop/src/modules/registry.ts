@@ -1,9 +1,14 @@
+import { lazy } from "react"
 import type { LucideIcon } from "lucide-react"
-import { FileDiff, GitCompare, History } from "lucide-react"
+import { FileDiff, FolderTree, GitCompare, History } from "lucide-react"
 import type { Project } from "@git-gui/core"
 import { WorktreeModule } from "./worktree/WorktreeModule"
 import { HistoryModule } from "./history/HistoryModule"
 import { BranchCompareModule } from "./branch-compare/BranchCompareModule"
+
+const FilesModule = lazy(() =>
+  import("./files/FilesModule").then((module) => ({ default: module.FilesModule })),
+)
 
 export interface ModuleProps {
   project: Project
@@ -26,6 +31,12 @@ export const MODULES: ModuleDef[] = [
     title: "工作区",
     icon: FileDiff,
     component: WorktreeModule,
+  },
+  {
+    id: "files",
+    title: "文件",
+    icon: FolderTree,
+    component: FilesModule,
   },
   {
     id: "history",

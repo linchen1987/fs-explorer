@@ -16,8 +16,11 @@
 | 模块 | 说明 |
 | --- | --- |
 | **工作区** | 当前 diff：已暂存 / 未暂存 / 未跟踪三组文件，点击查看 staged / unstaged / 全新增 diff，支持暂存与取消暂存（单个或整组） |
+| **文件** | 项目文件树与筛选；代码查看/编辑/保存（基础高亮、⌘/Ctrl+S、未保存确认）；Markdown 与 SVG 支持源码/渲染预览，并支持常见图片和视频查看 |
 | **提交历史** | 当前分支或所有分支的提交拓扑图，显示分支/tag 装饰，按 80 条分页加载；点击提交查看元信息、变更文件和单文件 diff（合并提交相对第一父提交） |
 | **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
+
+> 文件模块展示已跟踪及未忽略的未跟踪文件。文本查看/编辑限 UTF-8、2 MiB；图片/视频预览限 32 MiB。
 
 > 新模块通过 `apps/desktop/src/modules/registry.ts` 注册即可接入，见下文。
 
@@ -27,6 +30,7 @@
 - **Tauri 2**（Rust 后端执行系统 git 命令，无 libgit2 依赖）
 - **React 19 + TypeScript + Vite 8**
 - **Tailwind CSS v4 + shadcn/ui**（radix 基座）
+- **CodeMirror 6**（按需加载语言高亮）与 **react-markdown + GFM**
 - **zustand** 状态管理，**sonner** 错误提示
 
 ## 目录结构
@@ -38,18 +42,20 @@ git-gui/
 │       ├── src/                 # 前端
 │       │   ├── components/      # 侧栏/主区域/DiffViewer 等共享组件
 │       │   ├── modules/         # 主区域模块（registry.ts 注册）
-│       │   │   ├── branch-compare/   # 模块1：分支对比
-│       │   │   ├── worktree/         # 模块2：工作区
-│       │   │   └── history/          # 模块3：提交历史与拓扑图
+│       │   │   ├── branch-compare/   # 分支对比
+│       │   │   ├── worktree/         # 工作区
+│       │   │   ├── files/            # 文件树、查看器与文本编辑器
+│       │   │   └── history/          # 提交历史与拓扑图
 │       │   ├── stores/          # zustand（projects / compare）
 │       │   └── lib/             # IPC 封装、hooks
 │       └── src-tauri/           # Rust 后端
 │           └── src/
 │               ├── commands.rs  # Tauri commands（前后端契约）
 │               ├── state.rs     # 项目列表持久化
+│               ├── files.rs     # 受限的项目文件读取与文本保存
 │               └── git/         # git 输出解析（status/refs/diff/history，含单元测试）
 └── packages/
-    └── core/                    # @git-gui/core：领域类型 + Diff/提交图解析（vitest 测试）
+    └── core/                    # @git-gui/core：领域类型 + Diff/提交图/文件树处理（vitest 测试）
 ```
 
 ## 开发
@@ -89,6 +95,7 @@ pnpm install:local    # macOS：构建并安装到 /Applications/Git GUI.app（�
 ## 路线图（渐进式）
 
 - [ ] 模块·提交：写 commit message 并提交
+- [x] 模块·文件：文件树、代码查看/编辑、Markdown/SVG 与媒体预览
 - [x] 模块·历史：分支的提交时间线（graph）
 - [ ] 工作区：放弃更改、stash
 - [ ] 分支对比：按目录折叠文件树、关键词过滤
