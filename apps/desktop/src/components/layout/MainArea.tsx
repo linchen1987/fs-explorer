@@ -146,26 +146,12 @@ export function MainArea() {
         onValueChange={setActive}
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
-        <div className="shrink-0 border-b px-3">
-          <TabsList className="h-10 gap-1 bg-transparent p-0">
+        <div className="shrink-0 border-b px-3 py-1">
+          <TabsList className="h-8 gap-1">
             {MODULES.map((m) => (
-              <TabsTrigger
-                key={m.id}
-                value={m.id}
-                className={cn(
-                  "group h-9 flex-none gap-1.5 rounded-md border-0 px-3 text-[13px] text-muted-foreground transition-colors",
-                  "hover:bg-accent/60 hover:text-foreground",
-                  "focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                  "data-[state=active]:bg-accent/70 data-[state=active]:text-foreground data-[state=active]:shadow-none",
-                  "dark:data-[state=active]:bg-accent dark:data-[state=active]:text-foreground",
-                )}
-              >
+              <TabsTrigger key={m.id} value={m.id} className="gap-1.5 px-3">
                 <m.icon className="size-3.5" />
                 {m.title}
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-x-3 -bottom-0.5 h-0.5 rounded-full bg-primary opacity-0 transition-opacity group-data-[state=active]:opacity-100"
-                />
               </TabsTrigger>
             ))}
           </TabsList>
