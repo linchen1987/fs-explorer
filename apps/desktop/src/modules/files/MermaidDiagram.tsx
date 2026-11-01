@@ -1,5 +1,14 @@
-import { useEffect, useId, useRef, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
+import { ZoomableImage } from "./ZoomableImage"
+
+function serializeSvg(svg: string) {
+  const template = document.createElement("template")
+  template.innerHTML = svg
+  const element = template.content.querySelector("svg")
+  // Mermaid 的 HTML 标签可能包含 <br>；内联 HTML 可解析，独立 SVG 图片必须先转为合法 XML。
+  return element ? new XMLSerializer().serializeToString(element) : svg
+}
 
 export function MermaidDiagram({ code }: { code: string }) {
   const { resolvedTheme } = useTheme()
@@ -8,6 +17,13 @@ export function MermaidDiagram({ code }: { code: string }) {
   const renderSequence = useRef(0)
   const [svg, setSvg] = useState("")
   const [error, setError] = useState("")
+  const svgUrl = useMemo(() => {
+    if (!svg) return ""
+    const bytes = new TextEncoder().encode(serializeSvg(svg))
+    let binary = ""
+    bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+    return `data:image/svg+xml;base64,${btoa(binary)}`
+  }, [svg])
 
   useEffect(() => {
     let active = true
@@ -54,10 +70,16 @@ export function MermaidDiagram({ code }: { code: string }) {
     )
   }
   return (
-    <div
-      className="markdown-mermaid"
-      aria-label="Mermaid 图表"
-      dangerouslySetInnerHTML={{ __html: svg }}
+    <ZoomableImage
+      src={svgUrl}
+      alt="Mermaid 图表"
+      className="markdown-mermaid w-full"
+      preview={(
+        <span
+          className="contents"
+          dangerouslySetInnerHTML={{ __html: svg }}
+        />
+      )}
     />
   )
 }

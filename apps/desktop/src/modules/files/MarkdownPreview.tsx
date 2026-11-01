@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { ipc } from "@/lib/ipc"
 import { MermaidDiagram } from "./MermaidDiagram"
+import { ZoomableImage } from "./ZoomableImage"
 import "./MarkdownPreview.css"
 
 function isRemoteSource(src: string) {
@@ -83,7 +84,7 @@ function MarkdownImage({
   if (!resolved) {
     return <span className="inline-block h-20 w-full max-w-md animate-pulse rounded-md bg-muted" />
   }
-  return <img {...props} src={resolved} alt={alt ?? ""} loading="lazy" />
+  return <ZoomableImage {...props} src={resolved} alt={alt ?? ""} loading="lazy" />
 }
 
 export function MarkdownPreview({
@@ -97,7 +98,7 @@ export function MarkdownPreview({
 }) {
   return (
     <div className="h-full overflow-auto">
-      <article className="markdown-preview mx-auto w-full max-w-3xl px-8 py-7">
+      <article className="markdown-preview mx-auto w-full max-w-6xl px-8 py-7">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
