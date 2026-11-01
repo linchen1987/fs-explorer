@@ -28,6 +28,7 @@ import { CenterHint } from "@/components/CenterHint"
 import { FilePath, StatusBadge } from "@/components/StatusBadge"
 import { DiffViewer } from "@/components/diff/DiffViewer"
 import type { ModuleProps } from "@/modules/registry"
+import { ConflictFileView } from "./ConflictFileView"
 
 type Kind = "staged" | "changes" | "untracked"
 
@@ -191,9 +192,14 @@ export function WorktreeModule({ project }: ModuleProps) {
     return null
   }, [sel, st, repo, staged, changes, untracked])
 
+  const selectedEntry = effSel
+    ? st?.entries.find((entry) => entry.path === effSel.path)
+    : undefined
+
   const diff = useAsync(() => {
     if (!effSel || !st) return Promise.resolve(null)
     const entry = st.entries.find((e) => e.path === effSel.path)
+    if (entry?.conflicted) return Promise.resolve(null)
     if (effSel.kind === "staged") {
       return ipc.diffWorktreeFile(repo, effSel.path, true, entry?.oldPath ?? null)
     }
@@ -330,22 +336,26 @@ export function WorktreeModule({ project }: ModuleProps) {
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel defaultSize="68%">
-            <DiffViewer
-              text={diff.data}
-              loading={diff.loading}
-              emptyHint="选择左侧文件查看差异"
-              badges={
-                effSel && (
-                  <Badge variant="secondary" className="h-5 text-[10px] font-normal">
-                    {effSel.kind === "staged"
-                      ? "已暂存"
-                      : effSel.kind === "untracked"
-                        ? "未跟踪"
-                        : "未暂存"}
-                  </Badge>
-                )
-              }
-            />
+            {effSel && selectedEntry?.conflicted ? (
+              <ConflictFileView repo={repo} path={effSel.path} />
+            ) : (
+              <DiffViewer
+                text={diff.data}
+                loading={diff.loading}
+                emptyHint="选择左侧文件查看差异"
+                badges={
+                  effSel && (
+                    <Badge variant="secondary" className="h-5 text-[10px] font-normal">
+                      {effSel.kind === "staged"
+                        ? "已暂存"
+                        : effSel.kind === "untracked"
+                          ? "未跟踪"
+                          : "未暂存"}
+                    </Badge>
+                  )
+                }
+              />
+            )}
           </ResizablePanel>
         </ResizablePanelGroup>
       )}

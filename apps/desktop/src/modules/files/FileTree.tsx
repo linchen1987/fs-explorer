@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { StatusBadge } from "@/components/StatusBadge"
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "avif"])
 const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogv", "ogg"])
@@ -47,6 +48,7 @@ function TreeNode({
   node,
   depth,
   selectedPath,
+  conflictedPaths,
   expanded,
   searching,
   onToggle,
@@ -55,12 +57,14 @@ function TreeNode({
   node: FileTreeNode
   depth: number
   selectedPath: string | null
+  conflictedPaths: ReadonlySet<string>
   expanded: Set<string>
   searching: boolean
   onToggle: (path: string) => void
   onSelect: (path: string) => void
 }) {
   const directory = node.kind === "directory"
+  const conflicted = !directory && conflictedPaths.has(node.path)
   const open = searching || expanded.has(node.path)
   return (
     <>
@@ -71,7 +75,7 @@ function TreeNode({
           !directory && selectedPath === node.path && "bg-accent text-accent-foreground",
         )}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
-        title={node.path}
+        title={conflicted ? `${node.path}（合并冲突）` : node.path}
         aria-expanded={directory ? open : undefined}
         aria-current={!directory && selectedPath === node.path ? "page" : undefined}
         onClick={() => directory ? onToggle(node.path) : onSelect(node.path)}
@@ -94,6 +98,7 @@ function TreeNode({
           <FileTypeIcon path={node.path} />
         )}
         <span className="min-w-0 truncate">{node.name}</span>
+        {conflicted && <StatusBadge status="U" className="ml-auto" />}
       </button>
       {directory && open && node.children.map((child) => (
         <TreeNode
@@ -101,6 +106,7 @@ function TreeNode({
           node={child}
           depth={depth + 1}
           selectedPath={selectedPath}
+          conflictedPaths={conflictedPaths}
           expanded={expanded}
           searching={searching}
           onToggle={onToggle}
@@ -114,6 +120,7 @@ function TreeNode({
 interface FileTreeProps {
   paths: string[]
   selectedPath: string | null
+  conflictedPaths: ReadonlySet<string>
   loading: boolean
   onSelect: (path: string) => void
   onRefresh: () => void
@@ -122,6 +129,7 @@ interface FileTreeProps {
 export function FileTree({
   paths,
   selectedPath,
+  conflictedPaths,
   loading,
   onSelect,
   onRefresh,
@@ -149,7 +157,7 @@ export function FileTree({
           variant="ghost"
           size="icon-xs"
           className="ml-auto"
-          title="刷新文件列表（不含被 Git 忽略的文件）"
+          title="刷新文件列表"
           onClick={onRefresh}
         >
           <RefreshCw className={cn(loading && "animate-spin")} />
@@ -185,6 +193,7 @@ export function FileTree({
             node={node}
             depth={0}
             selectedPath={selectedPath}
+            conflictedPaths={conflictedPaths}
             expanded={expanded}
             searching={query.trim().length > 0}
             onToggle={toggle}

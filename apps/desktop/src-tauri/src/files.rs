@@ -222,6 +222,42 @@ mod tests {
     }
 
     #[test]
+    fn lists_and_reads_merge_conflicted_file() {
+        let dir = temp_repo();
+        let repo = dir.path().to_str().unwrap();
+        let run = |args: &[&str]| crate::git::run_git(Some(repo), args).unwrap();
+        run(&["config", "user.email", "t@t.t"]);
+        run(&["config", "user.name", "T"]);
+        fs::write(dir.path().join("conflict.txt"), "base\n").unwrap();
+        run(&["add", "conflict.txt"]);
+        run(&["commit", "-qm", "base"]);
+        let base = run(&["symbolic-ref", "--short", "HEAD"]);
+
+        run(&["checkout", "-qb", "feature"]);
+        fs::write(dir.path().join("conflict.txt"), "feature\n").unwrap();
+        run(&["commit", "-qam", "feature"]);
+        run(&["checkout", "-q", base.trim()]);
+        fs::write(dir.path().join("conflict.txt"), "current\n").unwrap();
+        run(&["commit", "-qam", "current"]);
+        assert!(crate::git::run_git(Some(repo), &["merge", "feature"]).is_err());
+
+        assert_eq!(list_files(repo).unwrap(), vec!["conflict.txt"]);
+        let file = read_file(repo, "conflict.txt").unwrap();
+        let text = file.text.as_deref().unwrap();
+        assert!(text.contains("<<<<<<<"));
+        assert!(text.contains("current"));
+        assert!(text.contains("feature"));
+        assert!(text.contains(">>>>>>>"));
+        let status = crate::git::status::status(repo).unwrap();
+        assert!(
+            status
+                .entries
+                .iter()
+                .any(|entry| { entry.path == "conflict.txt" && entry.conflicted })
+        );
+    }
+
+    #[test]
     fn reads_and_saves_utf8_text() {
         let dir = temp_repo();
         let repo = dir.path().to_str().unwrap();

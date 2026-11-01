@@ -2,6 +2,7 @@ import type { ProjectFileContent } from "@git-gui/core"
 import { splitPath } from "@git-gui/core"
 import { Code2, Eye, FileCode2, Loader2, Pencil, Save } from "lucide-react"
 import { CenterHint } from "@/components/CenterHint"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,6 +17,7 @@ function formatSize(size: number) {
 interface FileViewerProps {
   repo: string
   selectedPath: string | null
+  conflicted: boolean
   file: ProjectFileContent | null
   loading: boolean
   error: string | null
@@ -34,6 +36,7 @@ interface FileViewerProps {
 export function FileViewer({
   repo,
   selectedPath,
+  conflicted,
   file,
   loading,
   error,
@@ -70,6 +73,11 @@ export function FileViewer({
           <span className="min-w-0 truncate text-xs text-muted-foreground" title={file?.path ?? selectedPath}>
             {path.dir}
           </span>
+        )}
+        {conflicted && (
+          <Badge variant="destructive" className="h-5 shrink-0 px-1.5 text-[10px] font-normal">
+            合并冲突
+          </Badge>
         )}
         {dirty && (
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">

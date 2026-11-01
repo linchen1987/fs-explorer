@@ -30,6 +30,7 @@ type PendingAction = { type: "select"; path: string } | { type: "cancel-edit" }
 export function FilesModule({ project }: ModuleProps) {
   const repo = project.path
   const files = useAsync(() => ipc.listProjectFiles(repo), [repo])
+  const status = useAsync(() => ipc.getWorktreeStatus(repo), [repo])
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [mode, setMode] = useState<FileViewMode>("code")
@@ -37,6 +38,12 @@ export function FilesModule({ project }: ModuleProps) {
   const [draft, setDraft] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [pending, setPending] = useState<PendingAction | null>(null)
+  const conflictedPaths = useMemo(
+    () => new Set(
+      status.data?.entries.filter((entry) => entry.conflicted).map((entry) => entry.path) ?? [],
+    ),
+    [status.data],
+  )
 
   const requestKey = selectedPath ? `${repo}:${selectedPath}` : null
   const content = useAsync(
@@ -66,6 +73,7 @@ export function FilesModule({ project }: ModuleProps) {
 
   useRefreshListener(() => {
     files.reload()
+    status.reload()
     // 刷新不能覆盖正在编辑的内容；文件列表仍可正常更新。
     if (!dirty) content.reload()
   })
@@ -131,6 +139,7 @@ export function FilesModule({ project }: ModuleProps) {
           <FileTree
             paths={files.data ?? []}
             selectedPath={selectedPath}
+            conflictedPaths={conflictedPaths}
             loading={files.loading}
             onSelect={selectFile}
             onRefresh={files.reload}
@@ -141,6 +150,7 @@ export function FilesModule({ project }: ModuleProps) {
           <FileViewer
             repo={repo}
             selectedPath={selectedPath}
+            conflicted={selectedPath ? conflictedPaths.has(selectedPath) : false}
             file={file}
             loading={content.loading}
             error={content.error}
