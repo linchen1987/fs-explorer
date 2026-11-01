@@ -16,11 +16,11 @@
 | 模块 | 说明 |
 | --- | --- |
 | **工作区** | 当前 diff：已暂存 / 未暂存 / 未跟踪三组文件，点击查看 staged / unstaged / 全新增 diff，支持暂存与取消暂存（单个或整组） |
-| **文件** | 项目文件树与筛选；代码查看/编辑/保存（基础高亮、⌘/Ctrl+S、未保存确认）；Markdown 与 SVG 支持源码/渲染预览，并支持常见图片和视频查看 |
+| **文件** | 项目文件树与筛选；代码查看/编辑/保存（基础高亮、⌘/Ctrl+S、未保存确认）；Markdown 支持 GFM、本地图片与 Mermaid 图表渲染，SVG 支持源码/渲染预览，并支持常见图片和视频查看 |
 | **提交历史** | 当前分支或所有分支的提交拓扑图，显示分支/tag 装饰，按 80 条分页加载；点击提交查看元信息、变更文件和单文件 diff（合并提交相对第一父提交） |
 | **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
 
-> 文件模块展示已跟踪及未忽略的未跟踪文件。文本查看/编辑限 UTF-8、2 MiB；图片/视频预览限 32 MiB。
+> 文件模块展示已跟踪及所有未跟踪文件（包括被 `.gitignore` 等规则忽略的文件，但不包含 `.git` 内容）。文本查看/编辑限 UTF-8、2 MiB；图片/视频预览限 32 MiB。
 
 > 新模块通过 `apps/desktop/src/modules/registry.ts` 注册即可接入，见下文。
 
@@ -30,7 +30,7 @@
 - **Tauri 2**（Rust 后端执行系统 git 命令，无 libgit2 依赖）
 - **React 19 + TypeScript + Vite 8**
 - **Tailwind CSS v4 + shadcn/ui**（radix 基座）
-- **CodeMirror 6**（按需加载语言高亮）与 **react-markdown + GFM**
+- **CodeMirror 6**（按需加载语言高亮）与 **react-markdown + GFM + Mermaid**（图表按需渲染）
 - **zustand** 状态管理，**sonner** 错误提示
 
 ## 目录结构

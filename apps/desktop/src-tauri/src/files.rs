@@ -20,18 +20,9 @@ pub struct FileContent {
     pub mime: Option<String>,
 }
 
-/// 列出已跟踪及未忽略的未跟踪文件（不包含目录）。
+/// 列出已跟踪及所有未跟踪文件，包括被 ignore 规则忽略的文件（不包含目录和 .git 内容）。
 pub fn list_files(repo: &str) -> Result<Vec<String>, String> {
-    let raw = crate::git::run_git(
-        Some(repo),
-        &[
-            "ls-files",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-            "-z",
-        ],
-    )?;
+    let raw = crate::git::run_git(Some(repo), &["ls-files", "--cached", "--others", "-z"])?;
     let files: BTreeSet<String> = raw
         .split('\0')
         .filter(|path| !path.is_empty())
@@ -193,11 +184,16 @@ mod tests {
     }
 
     #[test]
-    fn lists_tracked_and_untracked_files() {
+    fn lists_tracked_untracked_and_ignored_files() {
         let dir = temp_repo();
         let repo = dir.path().to_str().unwrap();
         fs::create_dir(dir.path().join("nested")).unwrap();
-        fs::write(dir.path().join(".gitignore"), "ignored-by-repo.fixture\n").unwrap();
+        fs::create_dir(dir.path().join("ignored-dir")).unwrap();
+        fs::write(
+            dir.path().join(".gitignore"),
+            "ignored-by-repo.fixture\nignored-dir/\n",
+        )
+        .unwrap();
         fs::write(dir.path().join("tracked.txt"), "tracked").unwrap();
         fs::write(dir.path().join("nested/child.txt"), "child").unwrap();
         crate::git::run_git(
@@ -207,18 +203,22 @@ mod tests {
         .unwrap();
         fs::write(dir.path().join("untracked.txt"), "untracked").unwrap();
         fs::write(dir.path().join("ignored-by-repo.fixture"), "ignored").unwrap();
+        fs::write(dir.path().join("ignored-dir/child.txt"), "ignored").unwrap();
 
         let files = list_files(repo).unwrap();
         assert_eq!(
             files,
             vec![
                 ".gitignore",
+                "ignored-by-repo.fixture",
+                "ignored-dir/child.txt",
                 "nested/child.txt",
                 "tracked.txt",
                 "untracked.txt"
             ]
         );
         assert!(!files.iter().any(|path| path == "nested"));
+        assert!(!files.iter().any(|path| path.starts_with(".git/")));
     }
 
     #[test]

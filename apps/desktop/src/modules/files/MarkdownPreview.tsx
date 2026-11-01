@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react"
+import { isValidElement, useEffect, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { ipc } from "@/lib/ipc"
+import { MermaidDiagram } from "./MermaidDiagram"
 import "./MarkdownPreview.css"
 
 function isRemoteSource(src: string) {
@@ -20,6 +21,20 @@ function resolveLocalPath(filePath: string, source: string) {
     } else parts.push(part)
   }
   return parts.join("/")
+}
+
+function MarkdownPre({
+  children,
+  node: _node,
+  ...props
+}: React.ComponentProps<"pre"> & { node?: unknown }) {
+  if (isValidElement<{ className?: string; children?: unknown }>(children)) {
+    const { className = "", children: code } = children.props
+    if (/(?:^|\s)language-mermaid(?:\s|$)/.test(className)) {
+      return <MermaidDiagram code={String(code ?? "").replace(/\n$/, "")} />
+    }
+  }
+  return <pre {...props}>{children}</pre>
 }
 
 function MarkdownImage({
@@ -86,6 +101,7 @@ export function MarkdownPreview({
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
+            pre: MarkdownPre,
             img: (props) => <MarkdownImage {...props} repo={repo} filePath={path} />,
             a: ({ href, children, node: _node, ...props }) => {
               const external = href ? isRemoteSource(href) : false

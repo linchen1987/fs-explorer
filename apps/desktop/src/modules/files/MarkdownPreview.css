@@ -65,6 +65,39 @@
     padding: 0;
     font-size: 12px;
   }
+  .markdown-preview .markdown-mermaid {
+    display: flex;
+    min-height: 5rem;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 1rem;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--muted);
+    padding: 1rem;
+  }
+  .markdown-preview .markdown-mermaid svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  .markdown-preview .markdown-mermaid-message,
+  .markdown-preview .markdown-mermaid-error {
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .markdown-preview .markdown-mermaid-error {
+    flex-direction: column;
+    align-items: flex-start;
+    color: var(--destructive);
+  }
+  .markdown-preview .markdown-mermaid-error strong { font-weight: 500; }
+  .markdown-preview .markdown-mermaid-error span {
+    margin-top: 0.35rem;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
   .markdown-preview table {
     width: 100%;
     margin: 0 0 1rem;
