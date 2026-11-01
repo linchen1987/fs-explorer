@@ -58,8 +58,27 @@ pub async fn remove_project(state: State<'_, AppState>, path: String) -> Result<
 }
 
 #[tauri::command]
-pub async fn list_project_files(repo: String) -> Result<Vec<String>, String> {
-    crate::files::list_files(&repo)
+pub async fn list_project_directory(
+    repo: String,
+    parent: String,
+    limit: usize,
+) -> Result<crate::files::FileTreePage, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::files::list_directory(&repo, &parent, limit)
+    })
+    .await
+    .map_err(|e| format!("读取项目目录任务失败: {e}"))?
+}
+
+#[tauri::command]
+pub async fn search_project_files(
+    repo: String,
+    query: String,
+    limit: usize,
+) -> Result<crate::files::FileSearchResult, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::files::search_files(&repo, &query, limit))
+        .await
+        .map_err(|e| format!("搜索项目文件任务失败: {e}"))?
 }
 
 #[tauri::command]
@@ -79,7 +98,9 @@ pub async fn save_project_file(repo: String, path: String, content: String) -> R
 pub async fn get_worktree_status(
     repo: String,
 ) -> Result<crate::git::status::WorktreeStatus, String> {
-    crate::git::status::status(&repo)
+    tauri::async_runtime::spawn_blocking(move || crate::git::status::status(&repo))
+        .await
+        .map_err(|e| format!("读取工作区状态任务失败: {e}"))?
 }
 
 #[tauri::command]

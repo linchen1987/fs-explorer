@@ -2,7 +2,6 @@
 
 use base64::{Engine as _, engine::general_purpose};
 use serde::Serialize;
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
@@ -20,15 +19,151 @@ pub struct FileContent {
     pub mime: Option<String>,
 }
 
-/// 列出已跟踪及所有未跟踪文件，包括被 ignore 规则忽略的文件（不包含目录和 .git 内容）。
-pub fn list_files(repo: &str) -> Result<Vec<String>, String> {
-    let raw = crate::git::run_git(Some(repo), &["ls-files", "--cached", "--others", "-z"])?;
-    let files: BTreeSet<String> = raw
-        .split('\0')
-        .filter(|path| !path.is_empty())
-        .map(str::to_string)
-        .collect();
-    Ok(files.into_iter().collect())
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct FileTreeNode {
+    pub name: String,
+    pub path: String,
+    pub kind: String,
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct FileTreePage {
+    pub nodes: Vec<FileTreeNode>,
+    pub total: usize,
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct FileSearchResult {
+    pub paths: Vec<String>,
+    pub total: usize,
+}
+
+/// 只读取一个目录的直接子节点；ignored 文件与目录不做过滤，仅排除 .git。
+pub fn list_directory(repo: &str, parent: &str, limit: usize) -> Result<FileTreePage, String> {
+    let directory = resolve_directory(repo, parent)?;
+    let prefix = if parent.is_empty() {
+        String::new()
+    } else {
+        format!("{parent}/")
+    };
+    let mut directories = Vec::new();
+    let mut files = Vec::new();
+
+    for entry in fs::read_dir(&directory)
+        .map_err(|e| format!("无法读取目录 {}: {e}", display_parent(parent)))?
+    {
+        let entry = entry.map_err(|e| format!("读取目录项失败 {}: {e}", display_parent(parent)))?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.eq_ignore_ascii_case(".git") {
+            continue;
+        }
+        let file_type = entry
+            .file_type()
+            .map_err(|e| format!("无法读取文件类型 {prefix}{name}: {e}"))?;
+        let kind = if file_type.is_dir() {
+            "directory"
+        } else {
+            "file"
+        };
+        let node = FileTreeNode {
+            path: format!("{prefix}{name}"),
+            name,
+            kind: kind.to_string(),
+        };
+        if kind == "directory" {
+            directories.push(node);
+        } else {
+            files.push(node);
+        }
+    }
+
+    directories.sort_unstable_by(|a: &FileTreeNode, b| a.name.cmp(&b.name));
+    files.sort_unstable_by(|a: &FileTreeNode, b| a.name.cmp(&b.name));
+    let total = directories.len() + files.len();
+    directories.extend(files);
+    directories.truncate(limit);
+    Ok(FileTreePage {
+        nodes: directories,
+        total,
+    })
+}
+
+/// 主动筛选时才遍历工作区；后端只向前端传输需要渲染的结果。
+pub fn search_files(repo: &str, query: &str, limit: usize) -> Result<FileSearchResult, String> {
+    let normalized = query.trim().to_lowercase();
+    if normalized.is_empty() {
+        return Ok(FileSearchResult {
+            paths: Vec::new(),
+            total: 0,
+        });
+    }
+
+    let root = repo_root(repo)?;
+    let mut pending = vec![root.clone()];
+    let mut matches = Vec::new();
+    let mut total = 0;
+
+    while let Some(directory) = pending.pop() {
+        let mut entries = fs::read_dir(&directory)
+            .map_err(|e| format!("无法搜索目录 {}: {e}", directory.display()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("无法读取搜索结果: {e}"))?;
+        entries.sort_unstable_by_key(|entry| entry.file_name());
+
+        for entry in entries.iter().rev() {
+            let name = entry.file_name();
+            if name.to_string_lossy().eq_ignore_ascii_case(".git") {
+                continue;
+            }
+            let file_type = entry
+                .file_type()
+                .map_err(|e| format!("无法读取文件类型 {}: {e}", entry.path().display()))?;
+            if file_type.is_dir() {
+                pending.push(entry.path());
+            }
+        }
+
+        for entry in entries {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.eq_ignore_ascii_case(".git") {
+                continue;
+            }
+            let file_type = entry
+                .file_type()
+                .map_err(|e| format!("无法读取文件类型 {}: {e}", entry.path().display()))?;
+            if file_type.is_dir() {
+                continue;
+            }
+            let path = entry
+                .path()
+                .strip_prefix(&root)
+                .map_err(|e| format!("无法解析文件路径 {}: {e}", entry.path().display()))?
+                .to_string_lossy()
+                .replace('\\', "/");
+            if path.to_lowercase().contains(&normalized) {
+                total += 1;
+                if matches.len() < limit {
+                    matches.push(path);
+                }
+            }
+        }
+    }
+
+    Ok(FileSearchResult {
+        paths: matches,
+        total,
+    })
+}
+
+fn display_parent(parent: &str) -> &str {
+    if parent.is_empty() {
+        "项目根目录"
+    } else {
+        parent
+    }
 }
 
 pub fn read_file(repo: &str, path: &str) -> Result<FileContent, String> {
@@ -97,6 +232,54 @@ pub fn save_file(repo: &str, path: &str, content: &str) -> Result<(), String> {
     // 写入前重新解析，确保最终写入路径仍位于仓库内且为普通文件。
     let full_path = resolve_file(repo, path)?;
     fs::write(&full_path, content).map_err(|e| format!("保存文件失败 {path}: {e}"))
+}
+
+fn repo_root(repo: &str) -> Result<PathBuf, String> {
+    let root = fs::canonicalize(repo).map_err(|e| format!("无法访问仓库 {repo}: {e}"))?;
+    if !root.is_dir() {
+        return Err(format!("仓库路径不是目录: {repo}"));
+    }
+    Ok(root)
+}
+
+/// 校验目录路径，防止通过 .. 或符号链接访问仓库及 .git 之外的内容。
+fn resolve_directory(repo: &str, parent: &str) -> Result<PathBuf, String> {
+    let root = repo_root(repo)?;
+    if parent.is_empty() {
+        return Ok(root);
+    }
+    let relative = Path::new(parent);
+    if relative.is_absolute() {
+        return Err(format!("目录路径必须是仓库内相对路径: {parent}"));
+    }
+    for component in relative.components() {
+        match component {
+            Component::Normal(part) if part.to_string_lossy().eq_ignore_ascii_case(".git") => {
+                return Err(format!("目录路径不能包含 .git 组件: {parent}"));
+            }
+            Component::Normal(_) => {}
+            Component::ParentDir => {
+                return Err(format!("目录路径不能包含 .. 组件: {parent}"));
+            }
+            _ => {
+                return Err(format!("目录路径必须是仓库内普通相对路径: {parent}"));
+            }
+        }
+    }
+
+    let full_path = fs::canonicalize(root.join(relative))
+        .map_err(|e| format!("目录不存在或无法访问 {parent}: {e}"))?;
+    if !full_path.starts_with(&root) {
+        return Err(format!("目录路径超出仓库根目录: {parent}"));
+    }
+    let git_dir = fs::canonicalize(root.join(".git")).unwrap_or_else(|_| root.join(".git"));
+    if full_path.starts_with(&git_dir) {
+        return Err(format!("目录路径不能指向 .git 内容: {parent}"));
+    }
+    if !full_path.is_dir() {
+        return Err(format!("路径不是目录: {parent}"));
+    }
+    Ok(full_path)
 }
 
 /// 校验相对路径，并解析符号链接后确认目标仍为仓库内普通文件。
@@ -205,20 +388,43 @@ mod tests {
         fs::write(dir.path().join("ignored-by-repo.fixture"), "ignored").unwrap();
         fs::write(dir.path().join("ignored-dir/child.txt"), "ignored").unwrap();
 
-        let files = list_files(repo).unwrap();
+        let root = list_directory(repo, "", 200).unwrap();
+        let entries: Vec<(&str, &str)> = root
+            .nodes
+            .iter()
+            .map(|node| (node.path.as_str(), node.kind.as_str()))
+            .collect();
         assert_eq!(
-            files,
+            entries,
             vec![
-                ".gitignore",
-                "ignored-by-repo.fixture",
-                "ignored-dir/child.txt",
-                "nested/child.txt",
-                "tracked.txt",
-                "untracked.txt"
+                ("ignored-dir", "directory"),
+                ("nested", "directory"),
+                (".gitignore", "file"),
+                ("ignored-by-repo.fixture", "file"),
+                ("tracked.txt", "file"),
+                ("untracked.txt", "file"),
             ]
         );
-        assert!(!files.iter().any(|path| path == "nested"));
-        assert!(!files.iter().any(|path| path.starts_with(".git/")));
+        assert_eq!(root.total, 6);
+        assert!(!root.nodes.iter().any(|node| node.path == ".git"));
+
+        let nested = list_directory(repo, "nested", 200).unwrap();
+        assert_eq!(nested.nodes[0].path, "nested/child.txt");
+        assert_eq!(nested.nodes[0].kind, "file");
+        let first = list_directory(repo, "", 1).unwrap();
+        assert_eq!(first.total, 6);
+        assert_eq!(first.nodes.len(), 1);
+        assert_eq!(first.nodes[0].path, "ignored-dir");
+
+        let search = search_files(repo, "CHILD", 200).unwrap();
+        assert_eq!(search.total, 2);
+        assert_eq!(
+            search.paths,
+            vec!["ignored-dir/child.txt", "nested/child.txt"]
+        );
+        let limited = search_files(repo, "child", 1).unwrap();
+        assert_eq!(limited.total, 2);
+        assert_eq!(limited.paths, vec!["ignored-dir/child.txt"]);
     }
 
     #[test]
@@ -241,7 +447,9 @@ mod tests {
         run(&["commit", "-qam", "current"]);
         assert!(crate::git::run_git(Some(repo), &["merge", "feature"]).is_err());
 
-        assert_eq!(list_files(repo).unwrap(), vec!["conflict.txt"]);
+        let root = list_directory(repo, "", 200).unwrap();
+        assert_eq!(root.nodes.len(), 1);
+        assert_eq!(root.nodes[0].path, "conflict.txt");
         let file = read_file(repo, "conflict.txt").unwrap();
         let text = file.text.as_deref().unwrap();
         assert!(text.contains("<<<<<<<"));
@@ -374,6 +582,20 @@ mod tests {
         assert!(read_file(repo, "missing.txt").is_err());
         assert!(read_file(repo, "nested").is_err());
         assert!(save_file(repo, "../outside.txt", "bad").is_err());
+        for path in [
+            "../outside",
+            ".git",
+            ".GIT",
+            "nested/.git",
+            ".",
+            "note.txt",
+            absolute.as_str(),
+        ] {
+            assert!(
+                list_directory(repo, path, 200).is_err(),
+                "directory path should fail: {path}"
+            );
+        }
     }
 
     #[cfg(unix)]
@@ -398,6 +620,8 @@ mod tests {
         assert!(read_file(repo, "escape-dir/secret.txt").is_err());
         assert!(read_file(repo, "git-metadata-link/config").is_err());
         assert!(save_file(repo, "escape.txt", "changed").is_err());
+        assert!(list_directory(repo, "escape-dir", 200).is_err());
+        assert_eq!(search_files(repo, "secret", 200).unwrap().total, 0);
         assert_eq!(fs::read_to_string(secret).unwrap(), "secret");
     }
 }

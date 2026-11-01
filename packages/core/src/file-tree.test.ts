@@ -1,41 +1,57 @@
 import { describe, expect, it } from "vitest"
-import { buildFileTree, filterFileTree } from "./file-tree"
+import { listFileTreeChildren, searchFilePaths } from "./file-tree"
 
-describe("buildFileTree", () => {
-  it("构造去重文件树，并将目录排在文件前", () => {
-    const tree = buildFileTree([
-      "README.md",
-      "src/main.ts",
-      "src/components/Button.tsx",
-      "src/main.ts",
-      "package10.json",
-      "package2.json",
+const paths = [
+  "README.md",
+  "package10.json",
+  "package2.json",
+  "src/components/Button.tsx",
+  "src/main.ts",
+  "src/main.ts",
+]
+
+describe("listFileTreeChildren", () => {
+  it("只构造直接子节点，去重并将目录排在文件前", () => {
+    const root = listFileTreeChildren(paths)
+    expect(root.total).toBe(4)
+    expect(root.nodes).toEqual([
+      { name: "src", path: "src", kind: "directory" },
+      { name: "README.md", path: "README.md", kind: "file" },
+      { name: "package10.json", path: "package10.json", kind: "file" },
+      { name: "package2.json", path: "package2.json", kind: "file" },
     ])
 
-    expect(tree.map((node) => node.name)).toEqual([
-      "src",
-      "package2.json",
-      "package10.json",
-      "README.md",
-    ])
-    expect(tree[0].children.map((node) => node.path)).toEqual([
-      "src/components",
-      "src/main.ts",
-    ])
-    expect(tree[0].children[0].children[0]).toMatchObject({
-      name: "Button.tsx",
-      path: "src/components/Button.tsx",
-      kind: "file",
+    expect(listFileTreeChildren(paths, "src")).toEqual({
+      total: 2,
+      nodes: [
+        { name: "components", path: "src/components", kind: "directory" },
+        { name: "main.ts", path: "src/main.ts", kind: "file" },
+      ],
     })
   })
 
-  it("支持按完整路径过滤并保留必要的父目录", () => {
-    const tree = buildFileTree(["src/components/Button.tsx", "src/main.ts", "README.md"])
-    const filtered = filterFileTree(tree, "button")
+  it("限制返回节点数但保留直接子节点总数", () => {
+    const page = listFileTreeChildren(paths, "", 2)
+    expect(page.total).toBe(4)
+    expect(page.nodes.map((node) => node.path)).toEqual(["src", "README.md"])
+    expect(listFileTreeChildren(paths, "", 0).nodes).toEqual([])
+  })
+})
 
-    expect(filtered).toHaveLength(1)
-    expect(filtered[0].path).toBe("src")
-    expect(filtered[0].children[0].children[0].path).toBe("src/components/Button.tsx")
-    expect(filterFileTree(tree, "没有匹配")).toEqual([])
+describe("searchFilePaths", () => {
+  it("按完整路径进行大小写不敏感搜索", () => {
+    expect(searchFilePaths(paths, "BUTTON")).toEqual({
+      paths: ["src/components/Button.tsx"],
+      total: 1,
+    })
+    expect(searchFilePaths(paths, "没有匹配")).toEqual({ paths: [], total: 0 })
+    expect(searchFilePaths(paths, "  ")).toEqual({ paths: [], total: 0 })
+  })
+
+  it("限制渲染结果并保留全部命中数", () => {
+    expect(searchFilePaths([...new Set(paths)], "src/", 1)).toEqual({
+      paths: ["src/components/Button.tsx"],
+      total: 2,
+    })
   })
 })

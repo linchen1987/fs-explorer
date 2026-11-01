@@ -20,7 +20,7 @@
 | **提交历史** | 当前分支或所有分支的提交拓扑图，显示分支/tag 装饰，按 80 条分页加载；点击提交查看元信息、变更文件和单文件 diff（合并提交相对第一父提交） |
 | **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
 
-> 文件模块展示已跟踪及所有未跟踪文件（包括被 `.gitignore` 等规则忽略的文件，但不包含 `.git` 内容）。文本查看/编辑限 UTF-8、2 MiB；图片/视频预览限 32 MiB。
+> 文件模块展示工作区中的文件和目录（包括被 `.gitignore` 等规则忽略的内容，但不包含 `.git`）。后端按目录读取直接子项并分批返回 200 条，首次打开不扫描完整仓库；仅在主动搜索时遍历文件，最多展示前 200 条匹配结果。文本查看/编辑限 UTF-8、2 MiB；图片/视频预览限 32 MiB。
 
 > 新模块通过 `apps/desktop/src/modules/registry.ts` 注册即可接入，见下文。
 
@@ -84,7 +84,7 @@ pnpm install:local    # macOS：构建并安装到 /Applications/Git GUI.app（�
 ### 前后端契约
 
 - Rust 侧 `src-tauri/src/commands.rs` 中的每个 `#[tauri::command]` 对应前端 `src/lib/ipc.ts` 中的一个类型化封装；领域类型定义在 `packages/core/src/types.ts`（与 Rust 结构体的 camelCase serde 输出一一对应，修改需两侧同步）。
-- 文件状态与文件列表使用 `-z` / `--porcelain=v2` 等机器友好格式；提交历史携带 parent SHA 与 ref 装饰，前端据此计算拓扑。rename、merge、root commit 等约定以真实 git 输出的单元测试固化。
+- 文件状态使用 `-z` / `--porcelain=v2` 等机器友好格式；文件树由后端按目录读取，搜索结果在后端截断，避免向 WebView 传输完整路径数组。提交历史携带 parent SHA 与 ref 装饰，前端据此计算拓扑。rename、merge、root commit 等约定以真实 git 输出的单元测试固化。
 
 ### 如何新增一个模块
 

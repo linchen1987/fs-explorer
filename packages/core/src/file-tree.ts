@@ -2,59 +2,72 @@ export interface FileTreeNode {
   name: string
   path: string
   kind: "file" | "directory"
-  children: FileTreeNode[]
 }
 
-function compareNodes(a: FileTreeNode, b: FileTreeNode): number {
-  if (a.kind !== b.kind) return a.kind === "directory" ? -1 : 1
-  return a.name.localeCompare(b.name, undefined, {
-    numeric: true,
-    sensitivity: "base",
-  })
+export interface FileTreePage {
+  nodes: FileTreeNode[]
+  total: number
 }
 
-/** 将 Git 返回的扁平路径构造成目录优先、名称排序的文件树。 */
-export function buildFileTree(paths: string[]): FileTreeNode[] {
-  const root: FileTreeNode = { name: "", path: "", kind: "directory", children: [] }
-  const nodes = new Map<string, FileTreeNode>([["directory:", root]])
+export interface FileSearchResult {
+  paths: string[]
+  total: number
+}
 
-  for (const path of new Set(paths.filter(Boolean))) {
-    const parts = path.split("/").filter(Boolean)
-    let parent = root
-    let parentPath = ""
+/**
+ * 只计算一个目录的直接子节点，避免为大仓库预先构造完整文件树。
+ * Git 返回的路径已排序；同一组内保持该顺序，目录统一排在文件前。
+ */
+export function listFileTreeChildren(
+  paths: string[],
+  parentPath = "",
+  limit = 200,
+): FileTreePage {
+  const prefix = parentPath ? `${parentPath}/` : ""
+  const cap = Math.max(0, Math.floor(limit))
+  const directories = new Set<string>()
+  const files = new Set<string>()
+  const directoryNodes: FileTreeNode[] = []
+  const fileNodes: FileTreeNode[] = []
 
-    parts.forEach((name, index) => {
-      const nodePath = parentPath ? `${parentPath}/${name}` : name
-      const kind = index === parts.length - 1 ? "file" : "directory"
-      const key = `${kind}:${nodePath}`
-      let node = nodes.get(key)
-      if (!node) {
-        node = { name, path: nodePath, kind, children: [] }
-        nodes.set(key, node)
-        parent.children.push(node)
-      }
-      parent = node
-      parentPath = nodePath
-    })
+  for (const path of paths) {
+    if (!path.startsWith(prefix)) continue
+    const rest = path.slice(prefix.length)
+    if (!rest) continue
+    const slash = rest.indexOf("/")
+    const name = slash === -1 ? rest : rest.slice(0, slash)
+    const nodePath = `${prefix}${name}`
+    const directory = slash !== -1
+    const seen = directory ? directories : files
+    if (seen.has(nodePath)) continue
+    seen.add(nodePath)
+
+    const nodes = directory ? directoryNodes : fileNodes
+    if (nodes.length < cap) nodes.push({ name, path: nodePath, kind: directory ? "directory" : "file" })
   }
 
-  function sort(node: FileTreeNode) {
-    node.children.sort(compareNodes)
-    node.children.forEach(sort)
+  return {
+    nodes: [...directoryNodes, ...fileNodes].slice(0, cap),
+    total: directories.size + files.size,
   }
-  sort(root)
-  return root.children
 }
 
-/** 按完整路径过滤；命中的目录保留其子树，其他目录仅在后代命中时保留。 */
-export function filterFileTree(nodes: FileTreeNode[], query: string): FileTreeNode[] {
+/** 按完整路径搜索，保留总数但只返回需要渲染的前 limit 条。 */
+export function searchFilePaths(
+  paths: string[],
+  query: string,
+  limit = 200,
+): FileSearchResult {
   const normalized = query.trim().toLocaleLowerCase()
-  if (!normalized) return nodes
+  if (!normalized) return { paths: [], total: 0 }
 
-  return nodes.flatMap((node) => {
-    if (node.path.toLocaleLowerCase().includes(normalized)) return [node]
-    if (node.kind === "file") return []
-    const children = filterFileTree(node.children, normalized)
-    return children.length > 0 ? [{ ...node, children }] : []
-  })
+  const cap = Math.max(0, Math.floor(limit))
+  const matches: string[] = []
+  let total = 0
+  for (const path of paths) {
+    if (!path.toLocaleLowerCase().includes(normalized)) continue
+    total++
+    if (matches.length < cap) matches.push(path)
+  }
+  return { paths: matches, total }
 }

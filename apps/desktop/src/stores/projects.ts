@@ -1,3 +1,4 @@
+import { useCallback, useEffect } from "react"
 import type { Project, WorktreeStatus } from "@git-gui/core"
 import { create } from "zustand"
 import { errText } from "@/lib/async"
@@ -13,6 +14,7 @@ interface ProjectsState {
   selectedPath: string | null
   /** 各项目的状态（侧栏角标用），path -> 结果 */
   statuses: Record<string, StatusResult>
+  statusLoading: Record<string, boolean>
   gitVersion: string | null
   gitVersionError: string | null
   initialized: boolean
@@ -25,10 +27,14 @@ interface ProjectsState {
   refreshStatus: (path: string) => Promise<void>
 }
 
+/** 同一项目的并发刷新共享一个 Git 请求。 */
+const statusRequests = new Map<string, Promise<void>>()
+
 export const useProjectsStore = create<ProjectsState>((set, get) => ({
   projects: [],
   selectedPath: null,
   statuses: {},
+  statusLoading: {},
   gitVersion: null,
   gitVersionError: null,
   initialized: false,
@@ -68,12 +74,15 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
   remove: async (path) => {
     await ipc.removeProject(path)
     const projects = await ipc.listProjects()
-    const { selectedPath, statuses } = get()
+    const { selectedPath, statuses, statusLoading } = get()
     const nextStatuses = { ...statuses }
+    const nextLoading = { ...statusLoading }
     delete nextStatuses[path]
+    delete nextLoading[path]
     set({
       projects,
       statuses: nextStatuses,
+      statusLoading: nextLoading,
       selectedPath: selectedPath === path ? projects[0]?.path ?? null : selectedPath,
     })
   },
@@ -88,13 +97,24 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     await Promise.allSettled(projects.map((p) => get().refreshStatus(p.path)))
   },
 
-  refreshStatus: async (path) => {
-    try {
-      const status = await ipc.getWorktreeStatus(path)
-      set((s) => ({ statuses: { ...s.statuses, [path]: { ok: status } } }))
-    } catch (e) {
-      set((s) => ({ statuses: { ...s.statuses, [path]: { err: errText(e) } } }))
-    }
+  refreshStatus: (path) => {
+    const existing = statusRequests.get(path)
+    if (existing) return existing
+
+    const request = (async () => {
+      set((s) => ({ statusLoading: { ...s.statusLoading, [path]: true } }))
+      try {
+        const status = await ipc.getWorktreeStatus(path)
+        set((s) => ({ statuses: { ...s.statuses, [path]: { ok: status } } }))
+      } catch (e) {
+        set((s) => ({ statuses: { ...s.statuses, [path]: { err: errText(e) } } }))
+      } finally {
+        set((s) => ({ statusLoading: { ...s.statusLoading, [path]: false } }))
+        statusRequests.delete(path)
+      }
+    })()
+    statusRequests.set(path, request)
+    return request
   },
 }))
 
@@ -103,4 +123,26 @@ export function useSelectedProject(): Project | null {
   return useProjectsStore((s) =>
     s.projects.find((p) => p.path === s.selectedPath) ?? null,
   )
+}
+
+/** 侧栏与各模块共享同一项目的状态，避免重复执行 Git status。 */
+export function useProjectStatus(path: string) {
+  const result = useProjectsStore((s) => s.statuses[path])
+  const loading = useProjectsStore((s) => s.statusLoading[path] ?? false)
+  const refresh = useProjectsStore((s) => s.refreshStatus)
+
+  useEffect(() => {
+    if (!result && !loading) void refresh(path)
+  }, [path, result, loading, refresh])
+
+  const reload = useCallback(() => {
+    void refresh(path)
+  }, [path, refresh])
+
+  return {
+    data: result && "ok" in result ? result.ok : null,
+    error: result && "err" in result ? result.err : null,
+    loading: loading || !result,
+    reload,
+  }
 }

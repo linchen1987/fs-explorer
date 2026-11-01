@@ -14,6 +14,7 @@ import type { StatusEntry } from "@git-gui/core"
 import { errText, useAsync } from "@/lib/async"
 import { useRefreshListener } from "@/lib/events"
 import { ipc } from "@/lib/ipc"
+import { useProjectStatus } from "@/stores/projects"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -152,7 +153,7 @@ function Group({
 
 export function WorktreeModule({ project }: ModuleProps) {
   const repo = project.path
-  const status = useAsync(() => ipc.getWorktreeStatus(repo), [repo])
+  const status = useProjectStatus(repo)
   useRefreshListener(() => {
     status.reload()
   })

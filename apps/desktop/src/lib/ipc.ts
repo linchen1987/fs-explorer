@@ -7,11 +7,28 @@ import type {
   BranchList,
   CommitChanges,
   CompareResult,
+  FileSearchResult,
+  FileTreePage,
   HistoryPage,
   Project,
   ProjectFileContent,
   WorktreeStatus,
 } from "@git-gui/core"
+
+const projectDirectoryRequests = new Map<string, Promise<FileTreePage>>()
+
+/** React 开发模式的双重 Effect 与连续展开共享同一目录请求。 */
+function listProjectDirectory(repo: string, parent: string, limit: number): Promise<FileTreePage> {
+  const key = JSON.stringify([repo, parent, limit])
+  const existing = projectDirectoryRequests.get(key)
+  if (existing) return existing
+  const request = invoke<FileTreePage>("list_project_directory", { repo, parent, limit }).finally(() => {
+    projectDirectoryRequests.delete(key)
+  })
+  projectDirectoryRequests.set(key, request)
+  return request
+}
+
 
 export const ipc = {
   gitVersion: () => invoke<string>("git_version"),
@@ -20,8 +37,9 @@ export const ipc = {
   addProject: (path: string) => invoke<Project>("add_project", { path }),
   removeProject: (path: string) => invoke<void>("remove_project", { path }),
 
-  listProjectFiles: (repo: string) =>
-    invoke<string[]>("list_project_files", { repo }),
+  listProjectDirectory,
+  searchProjectFiles: (repo: string, query: string, limit: number) =>
+    invoke<FileSearchResult>("search_project_files", { repo, query, limit }),
   readProjectFile: (repo: string, path: string) =>
     invoke<ProjectFileContent>("read_project_file", { repo, path }),
   saveProjectFile: (repo: string, path: string, content: string) =>

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
-import { FolderTree } from "lucide-react"
 import { toast } from "sonner"
 import { errText, useAsync } from "@/lib/async"
 import { emitRefresh, useRefreshListener } from "@/lib/events"
 import { ipc } from "@/lib/ipc"
-import { CenterHint } from "@/components/CenterHint"
+import { useProjectStatus } from "@/stores/projects"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,10 +26,10 @@ import { FileViewer } from "./FileViewer"
 
 type PendingAction = { type: "select"; path: string } | { type: "cancel-edit" }
 
-export function FilesModule({ project }: ModuleProps) {
+export function FilesModule({ project, active }: ModuleProps) {
   const repo = project.path
-  const files = useAsync(() => ipc.listProjectFiles(repo), [repo])
-  const status = useAsync(() => ipc.getWorktreeStatus(repo), [repo])
+  const [filesRevision, setFilesRevision] = useState(0)
+  const status = useProjectStatus(repo)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [mode, setMode] = useState<FileViewMode>("code")
@@ -72,7 +71,8 @@ export function FilesModule({ project }: ModuleProps) {
   )
 
   useRefreshListener(() => {
-    files.reload()
+    if (!active) return
+    setFilesRevision((current) => current + 1)
     status.reload()
     // 刷新不能覆盖正在编辑的内容；文件列表仍可正常更新。
     if (!dirty) content.reload()
@@ -128,21 +128,17 @@ export function FilesModule({ project }: ModuleProps) {
     }
   }
 
-  if (files.error && !files.data) {
-    return <CenterHint icon={FolderTree} title="无法读取项目文件" desc={files.error} />
-  }
-
   return (
     <>
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         <ResizablePanel defaultSize="26%" minSize="18%" maxSize="45%">
           <FileTree
-            paths={files.data ?? []}
+            repo={repo}
+            revision={filesRevision}
             selectedPath={selectedPath}
             conflictedPaths={conflictedPaths}
-            loading={files.loading}
             onSelect={selectFile}
-            onRefresh={files.reload}
+            onRefresh={() => setFilesRevision((current) => current + 1)}
           />
         </ResizablePanel>
         <ResizableHandle />

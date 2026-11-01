@@ -12,6 +12,7 @@ const FilesModule = lazy(() =>
 
 export interface ModuleProps {
   project: Project
+  active: boolean
 }
 
 export interface ModuleDef {

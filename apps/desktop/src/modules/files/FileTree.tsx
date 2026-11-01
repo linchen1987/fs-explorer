@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ChevronRight,
   File,
@@ -12,16 +12,16 @@ import {
   Search,
   X,
 } from "lucide-react"
-import {
-  buildFileTree,
-  filterFileTree,
-  type FileTreeNode,
-} from "@git-gui/core"
+import type { FileSearchResult, FileTreeNode } from "@git-gui/core"
+import { useAsync } from "@/lib/async"
+import { ipc } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { StatusBadge } from "@/components/StatusBadge"
 
+const PAGE_SIZE = 200
+const SEARCH_DEBOUNCE_MS = 300
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "avif"])
 const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v", "ogv", "ogg"])
 const CODE_EXTENSIONS = new Set([
@@ -44,28 +44,34 @@ function FileTypeIcon({ path }: { path: string }) {
   return <File className={className} />
 }
 
+interface TreeViewProps {
+  repo: string
+  revision: number
+  selectedPath: string | null
+  conflictedPaths: ReadonlySet<string>
+  expanded: Set<string>
+  onToggle: (path: string) => void
+  onSelect: (path: string) => void
+}
+
+interface TreeNodeProps extends TreeViewProps {
+  node: FileTreeNode
+  depth: number
+}
+
 function TreeNode({
   node,
   depth,
   selectedPath,
   conflictedPaths,
   expanded,
-  searching,
   onToggle,
   onSelect,
-}: {
-  node: FileTreeNode
-  depth: number
-  selectedPath: string | null
-  conflictedPaths: ReadonlySet<string>
-  expanded: Set<string>
-  searching: boolean
-  onToggle: (path: string) => void
-  onSelect: (path: string) => void
-}) {
+  ...treeProps
+}: TreeNodeProps) {
   const directory = node.kind === "directory"
   const conflicted = !directory && conflictedPaths.has(node.path)
-  const open = searching || expanded.has(node.path)
+  const open = directory && expanded.has(node.path)
   return (
     <>
       <button
@@ -100,47 +106,146 @@ function TreeNode({
         <span className="min-w-0 truncate">{node.name}</span>
         {conflicted && <StatusBadge status="U" className="ml-auto" />}
       </button>
-      {directory && open && node.children.map((child) => (
-        <TreeNode
-          key={`${child.kind}:${child.path}`}
-          node={child}
+      {directory && open && (
+        <DirectoryNodes
+          parentPath={node.path}
           depth={depth + 1}
           selectedPath={selectedPath}
           conflictedPaths={conflictedPaths}
           expanded={expanded}
-          searching={searching}
           onToggle={onToggle}
           onSelect={onSelect}
+          {...treeProps}
+        />
+      )}
+    </>
+  )
+}
+
+interface DirectoryNodesProps extends TreeViewProps {
+  parentPath: string
+  depth: number
+  onLoadingChange?: (loading: boolean) => void
+}
+
+function DirectoryNodes({
+  repo,
+  revision,
+  parentPath,
+  depth,
+  onLoadingChange,
+  ...treeProps
+}: DirectoryNodesProps) {
+  const [limit, setLimit] = useState(PAGE_SIZE)
+  const page = useAsync(
+    () => ipc.listProjectDirectory(repo, parentPath, limit),
+    [repo, parentPath, limit, revision],
+  )
+
+  useEffect(() => {
+    onLoadingChange?.(page.loading)
+  }, [page.loading, onLoadingChange])
+
+  if (page.error) {
+    return (
+      <div className="px-3 py-2 text-xs text-muted-foreground" style={{ paddingLeft: `${8 + depth * 14}px` }}>
+        <p className="text-destructive">目录读取失败</p>
+        <p className="mt-1 break-all" title={page.error}>{page.error}</p>
+        <button type="button" className="mt-1 underline hover:text-foreground" onClick={page.reload}>
+          重试
+        </button>
+      </div>
+    )
+  }
+
+  if (!page.data) {
+    return (
+      <p className="px-3 py-2 text-xs text-muted-foreground" style={{ paddingLeft: `${8 + depth * 14}px` }}>
+        正在读取目录…
+      </p>
+    )
+  }
+
+  return (
+    <>
+      {page.data.nodes.map((node) => (
+        <TreeNode
+          key={`${node.kind}:${node.path}`}
+          node={node}
+          depth={depth}
+          repo={repo}
+          revision={revision}
+          {...treeProps}
         />
       ))}
+      {page.data.total > page.data.nodes.length && (
+        <button
+          type="button"
+          className="flex h-7 w-full items-center pr-2 text-left text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+          style={{ paddingLeft: `${24 + depth * 14}px` }}
+          onClick={() => setLimit((current) => current + PAGE_SIZE)}
+        >
+          显示更多（剩余 {page.data.total - page.data.nodes.length} 项）
+        </button>
+      )}
+      {page.data.total === 0 && (
+        <p className="px-3 py-2 text-xs text-muted-foreground" style={{ paddingLeft: `${8 + depth * 14}px` }}>
+          {parentPath ? "空目录" : "没有可显示的文件"}
+        </p>
+      )}
     </>
   )
 }
 
 interface FileTreeProps {
-  paths: string[]
+  repo: string
+  revision: number
   selectedPath: string | null
   conflictedPaths: ReadonlySet<string>
-  loading: boolean
   onSelect: (path: string) => void
   onRefresh: () => void
 }
 
+interface SearchResponse {
+  query: string
+  result: FileSearchResult
+}
+
 export function FileTree({
-  paths,
+  repo,
+  revision,
   selectedPath,
   conflictedPaths,
-  loading,
   onSelect,
   onRefresh,
 }: FileTreeProps) {
   const [query, setQuery] = useState("")
-  const [expanded, setCollapsed] = useState<Set<string>>(new Set())
-  const tree = useMemo(() => buildFileTree(paths), [paths])
-  const visible = useMemo(() => filterFileTree(tree, query), [tree, query])
+  const [debouncedQuery, setDebouncedQuery] = useState("")
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [rootLoading, setRootLoading] = useState(true)
+  const normalizedQuery = query.trim()
+  const searching = normalizedQuery.length > 0
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  const search = useAsync<SearchResponse | null>(() => {
+    const currentQuery = debouncedQuery.trim()
+    if (!currentQuery) return Promise.resolve(null)
+    return ipc.searchProjectFiles(repo, currentQuery, PAGE_SIZE).then((result) => ({
+      query: currentQuery,
+      result,
+    }))
+  }, [repo, debouncedQuery, revision])
+  const currentSearch = search.data?.query === normalizedQuery ? search.data.result : null
+  const searchWaiting = searching && !search.error && (
+    debouncedQuery.trim() !== normalizedQuery || search.loading || !currentSearch
+  )
 
   function toggle(path: string) {
-    setCollapsed((current) => {
+    setExpanded((current) => {
       const next = new Set(current)
       if (next.has(path)) next.delete(path)
       else next.add(path)
@@ -148,11 +253,20 @@ export function FileTree({
     })
   }
 
+  const treeProps: TreeViewProps = {
+    repo,
+    revision,
+    selectedPath,
+    conflictedPaths,
+    expanded,
+    onToggle: toggle,
+    onSelect,
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
         <span className="text-xs font-medium">项目文件</span>
-        <span className="text-[11px] text-muted-foreground">{paths.length}</span>
         <Button
           variant="ghost"
           size="icon-xs"
@@ -160,7 +274,7 @@ export function FileTree({
           title="刷新文件列表"
           onClick={onRefresh}
         >
-          <RefreshCw className={cn(loading && "animate-spin")} />
+          <RefreshCw className={cn((rootLoading || (searching && search.loading)) && "animate-spin")} />
           <span className="sr-only">刷新文件列表</span>
         </Button>
       </div>
@@ -169,40 +283,61 @@ export function FileTree({
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="筛选文件"
+          placeholder="搜索文件"
           className="h-7 pr-7 pl-7 text-xs"
-          aria-label="筛选文件"
+          aria-label="搜索文件"
         />
         {query && (
           <Button
             variant="ghost"
             size="icon-xs"
             className="absolute top-1/2 right-3 size-5 -translate-y-1/2"
-            title="清除筛选"
+            title="清除搜索"
             onClick={() => setQuery("")}
           >
             <X />
-            <span className="sr-only">清除筛选</span>
+            <span className="sr-only">清除搜索</span>
           </Button>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto py-1">
-        {visible.length > 0 ? visible.map((node) => (
-          <TreeNode
-            key={`${node.kind}:${node.path}`}
-            node={node}
+      <div className="min-h-0 flex-1 overflow-auto py-1" aria-busy={searchWaiting}>
+        {searching ? (
+          searchWaiting ? (
+            <p className="px-3 py-6 text-center text-xs text-muted-foreground">正在搜索文件…</p>
+          ) : search.error ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              <p className="text-destructive">搜索失败</p>
+              <p className="mt-1 break-all">{search.error}</p>
+              <button type="button" className="mt-2 underline hover:text-foreground" onClick={search.reload}>
+                重试
+              </button>
+            </div>
+          ) : currentSearch && currentSearch.total > 0 ? (
+            <>
+              {currentSearch.paths.map((path) => (
+                <TreeNode
+                  key={path}
+                  node={{ name: path, path, kind: "file" }}
+                  depth={0}
+                  {...treeProps}
+                />
+              ))}
+              <p className="px-3 py-2 text-[11px] text-muted-foreground">
+                共 {currentSearch.total} 个匹配文件
+                {currentSearch.total > currentSearch.paths.length &&
+                  `，仅显示前 ${currentSearch.paths.length} 个，请继续输入以缩小范围。`}
+              </p>
+            </>
+          ) : (
+            <p className="px-3 py-6 text-center text-xs text-muted-foreground">没有匹配的文件</p>
+          )
+        ) : (
+          <DirectoryNodes
+            parentPath=""
             depth={0}
-            selectedPath={selectedPath}
-            conflictedPaths={conflictedPaths}
-            expanded={expanded}
-            searching={query.trim().length > 0}
-            onToggle={toggle}
-            onSelect={onSelect}
+            onLoadingChange={setRootLoading}
+            {...treeProps}
           />
-        )) : (
-          <p className="px-3 py-6 text-center text-xs text-muted-foreground">
-            {query ? "没有匹配的文件" : loading ? "正在读取文件…" : "没有可显示的文件"}
-          </p>
         )}
       </div>
     </div>

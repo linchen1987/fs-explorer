@@ -68,9 +68,13 @@ function Welcome() {
 
 export function MainArea() {
   const project = useSelectedProject()
-  const statuses = useProjectsStore((s) => s.statuses)
-  const refreshStatuses = useProjectsStore((s) => s.refreshStatuses)
+  const status = useProjectsStore((s) => project ? s.statuses[project.path] : undefined)
+  const refreshStatus = useProjectsStore((s) => s.refreshStatus)
   const [active, setActive] = useState<string>(MODULES[0].id)
+  const [mounted, setMounted] = useState<{ repo: string | null; ids: string[] }>({
+    repo: null,
+    ids: [MODULES[0].id],
+  })
 
   if (!project) {
     return (
@@ -80,8 +84,20 @@ export function MainArea() {
     )
   }
 
-  const status = statuses[project.path]
+  const repo = project.path
+  const mountedIds = mounted.repo === repo ? mounted.ids : [active]
   const st = status && "ok" in status ? status.ok : null
+
+  function activateModule(id: string) {
+    setActive(id)
+    setMounted((current) => ({
+      repo,
+      ids: [...new Set([
+        ...(current.repo === repo ? current.ids : [active]),
+        id,
+      ])],
+    }))
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -128,7 +144,7 @@ export function MainArea() {
                 size="icon-sm"
                 onClick={() => {
                   emitRefresh()
-                  refreshStatuses()
+                  refreshStatus(project.path)
                 }}
               >
                 <RefreshCw />
@@ -143,7 +159,7 @@ export function MainArea() {
       {/* 模块页签 */}
       <Tabs
         value={active}
-        onValueChange={setActive}
+        onValueChange={activateModule}
         className="flex min-h-0 flex-1 flex-col gap-0"
       >
         <div className="shrink-0 border-b px-3 py-1">
@@ -164,9 +180,11 @@ export function MainArea() {
             className={cn("min-h-0 flex-1 outline-none data-[state=inactive]:hidden")}
           >
             {/* 切换项目时重挂载模块，避免旧仓库的异步数据和选择状态串入新仓库。 */}
-            <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载模块…</div>}>
-              <m.component key={project.path} project={project} />
-            </Suspense>
+            {mountedIds.includes(m.id) && (
+              <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载模块…</div>}>
+                <m.component key={project.path} project={project} active={active === m.id} />
+              </Suspense>
+            )}
           </TabsContent>
         ))}
       </Tabs>
