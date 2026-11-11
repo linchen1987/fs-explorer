@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm"
 import { ipc } from "@/lib/ipc"
 import { MermaidDiagram } from "./MermaidDiagram"
 import { ZoomableImage } from "./ZoomableImage"
+import { parseMarkdownFrontMatter, type MarkdownFrontMatter } from "./frontmatter"
 import "./MarkdownPreview.css"
 
 function isRemoteSource(src: string) {
@@ -36,6 +37,31 @@ function MarkdownPre({
     }
   }
   return <pre {...props}>{children}</pre>
+}
+
+function MarkdownFrontMatter({ frontMatter }: { frontMatter: MarkdownFrontMatter }) {
+  const { entries, raw } = frontMatter
+  if (!entries) {
+    return (
+      <pre className="markdown-frontmatter-raw" aria-label="YAML Front Matter">
+        <code>{raw.replace(/(?:\r\n|\n|\r)$/, "")}</code>
+      </pre>
+    )
+  }
+  if (entries.length === 0) return null
+
+  return (
+    <table className="markdown-frontmatter" aria-label="YAML Front Matter">
+      <tbody>
+        {entries.map((entry) => (
+          <tr key={entry.name}>
+            <th scope="row">{entry.name}</th>
+            <td>{entry.value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 }
 
 function MarkdownImage({
@@ -96,9 +122,12 @@ export function MarkdownPreview({
   path: string
   text: string
 }) {
+  const { body, frontMatter } = parseMarkdownFrontMatter(text)
+
   return (
     <div className="h-full overflow-auto">
       <article className="markdown-preview mx-auto w-full max-w-6xl px-8 py-7">
+        {frontMatter && <MarkdownFrontMatter frontMatter={frontMatter} />}
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -120,7 +149,7 @@ export function MarkdownPreview({
             },
           }}
         >
-          {text}
+          {body}
         </ReactMarkdown>
       </article>
     </div>
