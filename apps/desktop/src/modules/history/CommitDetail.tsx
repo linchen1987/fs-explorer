@@ -1,40 +1,14 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Copy, FileDiff, GitCommitHorizontal } from "lucide-react"
 import type { CommitChanges, FileChange, HistoryCommit } from "@git-gui/core"
 import { timeAgo } from "@git-gui/core"
 import { errText } from "@/lib/async"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { CenterHint } from "@/components/CenterHint"
+import { FileChangeList, FileListViewModeToggle } from "@/components/FileChangeList"
+import type { FileListViewMode } from "@/components/FileChangeList"
 import { DiffViewer } from "@/components/diff/DiffViewer"
-import { FilePath, StatDelta, StatusBadge } from "@/components/StatusBadge"
-
-function CommitFileRow({
-  file,
-  active,
-  onClick,
-}: {
-  file: FileChange
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex h-8 w-full cursor-pointer items-center gap-2 px-3 text-left text-[13px] hover:bg-accent/50",
-        active && "bg-accent text-accent-foreground",
-      )}
-      title={file.oldPath ? `${file.oldPath} → ${file.newPath}` : file.newPath}
-    >
-      <StatusBadge status={file.status} />
-      <FilePath path={file.newPath} className="min-w-0 flex-1 truncate" />
-      <StatDelta additions={file.additions} deletions={file.deletions} />
-    </button>
-  )
-}
 
 export function CommitDetail({
   commit,
@@ -58,6 +32,7 @@ export function CommitDetail({
   diffError: string | null
 }) {
   const files = useMemo(() => changes?.files ?? [], [changes])
+  const [viewMode, setViewMode] = useState<FileListViewMode>("flat")
   const fullDate = new Date(commit.timestamp * 1000).toLocaleString("zh-CN")
 
   async function copySha() {
@@ -109,18 +84,23 @@ export function CommitDetail({
             变更文件{" "}
             <span className="font-medium text-foreground">{files.length}</span>
           </span>
-          {changes && (
-            <div className="ml-auto flex gap-2">
-              <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                +{changes.totalAdditions}
-              </span>
-              <span className="font-mono text-red-600 dark:text-red-400">
-                −{changes.totalDeletions}
-              </span>
-            </div>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {files.length > 0 && (
+              <FileListViewModeToggle value={viewMode} onChange={setViewMode} />
+            )}
+            {changes && (
+              <div className="flex shrink-0 gap-2">
+                <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                  +{changes.totalAdditions}
+                </span>
+                <span className="font-mono text-red-600 dark:text-red-400">
+                  −{changes.totalDeletions}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto py-1">
+        <div className="min-h-0 flex-1 overflow-auto py-1">
           {changesError ? (
             <div className="px-3 py-2 text-xs break-all text-destructive">
               {changesError}
@@ -136,14 +116,13 @@ export function CommitDetail({
                 : "该提交没有文件变化"}
             </div>
           ) : (
-            files.map((file) => (
-              <CommitFileRow
-                key={`${file.status}:${file.newPath}`}
-                file={file}
-                active={selectedFile?.newPath === file.newPath}
-                onClick={() => onSelectFile(file.newPath)}
-              />
-            ))
+            <FileChangeList
+              key={commit.sha}
+              files={files}
+              viewMode={viewMode}
+              selectedPath={selectedFile?.newPath ?? null}
+              onSelect={onSelectFile}
+            />
           )}
         </div>
       </div>

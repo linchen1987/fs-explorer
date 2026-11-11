@@ -45,6 +45,7 @@ interface FileContentViewProps {
   mode: FileViewMode
   onChange: (value: string) => void
   onSave: () => void
+  onOpenFile?: (path: string) => void
 }
 
 export function FileContentView({
@@ -55,6 +56,7 @@ export function FileContentView({
   mode,
   onChange,
   onSave,
+  onOpenFile = () => {},
 }: FileContentViewProps) {
   if (file.kind === "image" && file.data && file.mime) {
     return (
@@ -96,7 +98,7 @@ export function FileContentView({
   if (!editing && mode === "preview" && isMarkdown(file.path)) {
     return (
       <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载预览…</div>}>
-        <MarkdownPreview repo={repo} path={file.path} text={text} />
+        <MarkdownPreview repo={repo} path={file.path} text={text} onOpenFile={onOpenFile} />
       </Suspense>
     )
   }

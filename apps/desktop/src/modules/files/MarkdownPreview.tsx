@@ -5,25 +5,8 @@ import { ipc } from "@/lib/ipc"
 import { MermaidDiagram } from "./MermaidDiagram"
 import { ZoomableImage } from "./ZoomableImage"
 import { parseMarkdownFrontMatter, type MarkdownFrontMatter } from "./frontmatter"
+import { isRemoteSource, resolveLocalPath } from "./markdown-links"
 import "./MarkdownPreview.css"
-
-function isRemoteSource(src: string) {
-  return /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(src)
-}
-
-function resolveLocalPath(filePath: string, source: string) {
-  const clean = source.split(/[?#]/, 1)[0]
-  const base = filePath.includes("/") ? filePath.slice(0, filePath.lastIndexOf("/")) : ""
-  const parts = clean.startsWith("/") ? [] : base.split("/").filter(Boolean)
-  for (const part of clean.split("/")) {
-    if (!part || part === ".") continue
-    if (part === "..") {
-      if (parts.length > 0) parts.pop()
-      else parts.push("..")
-    } else parts.push(part)
-  }
-  return parts.join("/")
-}
 
 function MarkdownPre({
   children,
@@ -117,10 +100,12 @@ export function MarkdownPreview({
   repo,
   path,
   text,
+  onOpenFile,
 }: {
   repo: string
   path: string
   text: string
+  onOpenFile: (path: string) => void
 }) {
   const { body, frontMatter } = parseMarkdownFrontMatter(text)
 
@@ -141,7 +126,16 @@ export function MarkdownPreview({
                   href={href}
                   target={external ? "_blank" : undefined}
                   rel={external ? "noreferrer" : undefined}
-                  onClick={(event) => { if (!external) event.preventDefault() }}
+                  onClick={(event) => {
+                    if (!href) {
+                      event.preventDefault()
+                      return
+                    }
+                    if (external || href.startsWith("#")) return
+                    event.preventDefault()
+                    const target = resolveLocalPath(path, href)
+                    if (target) onOpenFile(target)
+                  }}
                 >
                   {children}
                 </a>

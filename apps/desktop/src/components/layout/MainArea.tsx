@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
@@ -23,6 +23,7 @@ import {
 import { CenterHint } from "@/components/CenterHint"
 import { MODULES } from "@/modules/registry"
 import { useProjectsStore, useSelectedProject } from "@/stores/projects"
+import { useFileNavigationStore } from "@/stores/file-navigation"
 
 function Welcome() {
   const add = useProjectsStore((s) => s.add)
@@ -75,6 +76,48 @@ export function MainArea() {
     repo: null,
     ids: [MODULES[0].id],
   })
+  const openFileRequest = useFileNavigationStore((s) => s.request)
+  const repo = project?.path ?? null
+
+  const refresh = useCallback(() => {
+    if (!repo) return
+    emitRefresh()
+    void refreshStatus(repo)
+  }, [repo, refreshStatus])
+
+  const activateModule = useCallback((id: string) => {
+    if (!repo) return
+    setActive(id)
+    setMounted((current) => ({
+      repo,
+      ids: [...new Set([
+        ...(current.repo === repo ? current.ids : [active]),
+        id,
+      ])],
+    }))
+  }, [active, repo])
+
+  useEffect(() => {
+    if (openFileRequest?.repo === repo && repo) activateModule("files")
+  }, [activateModule, openFileRequest, repo])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.key.toLowerCase() !== "r"
+        || event.altKey
+        || event.shiftKey
+        || (!event.metaKey && !event.ctrlKey)
+      ) return
+
+      // 阻止 WebView 整页重载，只刷新当前项目的数据。
+      event.preventDefault()
+      refresh()
+    }
+    // 使用捕获阶段，确保编辑器获得焦点时也能响应快捷键。
+    window.addEventListener("keydown", handleKeyDown, true)
+    return () => window.removeEventListener("keydown", handleKeyDown, true)
+  }, [refresh])
 
   if (!project) {
     return (
@@ -84,20 +127,8 @@ export function MainArea() {
     )
   }
 
-  const repo = project.path
   const mountedIds = mounted.repo === repo ? mounted.ids : [active]
   const st = status && "ok" in status ? status.ok : null
-
-  function activateModule(id: string) {
-    setActive(id)
-    setMounted((current) => ({
-      repo,
-      ids: [...new Set([
-        ...(current.repo === repo ? current.ids : [active]),
-        id,
-      ])],
-    }))
-  }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -142,16 +173,14 @@ export function MainArea() {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => {
-                  emitRefresh()
-                  refreshStatus(project.path)
-                }}
+                onClick={refresh}
+                aria-keyshortcuts="Meta+R Control+R"
               >
                 <RefreshCw />
                 <span className="sr-only">刷新</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>刷新当前数据</TooltipContent>
+            <TooltipContent>刷新当前数据（⌘R / Ctrl+R）</TooltipContent>
           </Tooltip>
         </div>
       </header>

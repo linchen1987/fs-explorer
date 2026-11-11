@@ -1,6 +1,6 @@
 import type { ProjectFileContent } from "@git-gui/core"
 import { splitPath } from "@git-gui/core"
-import { Code2, Eye, FileCode2, Loader2, Pencil, Save } from "lucide-react"
+import { ArrowLeft, ArrowRight, Code2, Eye, FileCode2, Loader2, Pencil, Save } from "lucide-react"
 import { CenterHint } from "@/components/CenterHint"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -31,6 +31,11 @@ interface FileViewerProps {
   onCancel: () => void
   onSave: () => void
   onChange: (value: string) => void
+  onOpenFile: (path: string) => void
+  canGoBack: boolean
+  canGoForward: boolean
+  onBack: () => void
+  onForward: () => void
 }
 
 export function FileViewer({
@@ -50,6 +55,11 @@ export function FileViewer({
   onCancel,
   onSave,
   onChange,
+  onOpenFile,
+  canGoBack,
+  canGoForward,
+  onBack,
+  onForward,
 }: FileViewerProps) {
   if (!selectedPath) {
     return (
@@ -67,6 +77,28 @@ export function FileViewer({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="后退"
+            title="后退"
+            disabled={!canGoBack || saving}
+            onClick={onBack}
+          >
+            <ArrowLeft />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="前进"
+            title="前进"
+            disabled={!canGoForward || saving}
+            onClick={onForward}
+          >
+            <ArrowRight />
+          </Button>
+        </div>
         <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
         <span className="shrink-0 text-sm font-medium">{path.base}</span>
         {path.dir && (
@@ -138,6 +170,7 @@ export function FileViewer({
             mode={mode}
             onChange={onChange}
             onSave={onSave}
+            onOpenFile={onOpenFile}
           />
         )}
       </div>

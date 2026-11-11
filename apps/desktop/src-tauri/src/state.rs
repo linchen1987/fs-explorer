@@ -27,6 +27,11 @@ pub struct AppState {
     pub projects: Mutex<Vec<Project>>,
 }
 
+/// 按添加时间倒序；稳定排序会保留相同时间戳项目的现有先后顺序。
+pub(crate) fn sort_projects_newest_first(projects: &mut [Project]) {
+    projects.sort_by(|a, b| b.added_at.cmp(&a.added_at));
+}
+
 impl AppState {
     /// 初始化：读取配置目录中的 projects.json（不存在或损坏时从空列表开始）。
     pub fn init(dir: PathBuf) -> Self {
@@ -42,7 +47,11 @@ impl AppState {
     fn load(path: &Path) -> Option<Vec<Project>> {
         let raw = fs::read_to_string(path).ok()?;
         match serde_json::from_str::<ProjectFile>(&raw) {
-            Ok(f) => Some(f.projects),
+            Ok(f) => {
+                let mut projects = f.projects;
+                sort_projects_newest_first(&mut projects);
+                Some(projects)
+            }
             Err(e) => {
                 eprintln!("[git-gui] projects.json 解析失败({e})，已忽略");
                 None
@@ -115,6 +124,29 @@ mod tests {
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].name, "some-repo");
         assert_eq!(loaded[0].path, "/tmp/some-repo");
+    }
+
+    #[test]
+    fn load_sorts_projects_newest_first() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(
+            dir.path().join("projects.json"),
+            r#"{
+                "version": 1,
+                "projects": [
+                    { "path": "/tmp/oldest", "name": "oldest", "addedAt": "2025-01-01T00:00:00Z" },
+                    { "path": "/tmp/first", "name": "first", "addedAt": "2026-02-01T00:00:00Z" },
+                    { "path": "/tmp/newest", "name": "newest", "addedAt": "2026-03-01T00:00:00Z" },
+                    { "path": "/tmp/second", "name": "second", "addedAt": "2026-02-01T00:00:00Z" }
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let state = AppState::init(dir.path().to_path_buf());
+        let projects = state.projects.lock().unwrap();
+        let names = projects.iter().map(|p| p.name.as_str()).collect::<Vec<_>>();
+        assert_eq!(names, ["newest", "first", "second", "oldest"]);
     }
 
     #[test]

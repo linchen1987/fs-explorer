@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { ArrowLeftRight, GitCompareArrows, Loader2 } from "lucide-react"
-import type { FileChange } from "@git-gui/core"
 import { timeAgo } from "@git-gui/core"
 import { errText, useAsync } from "@/lib/async"
 import { useRefreshListener } from "@/lib/events"
 import { ipc } from "@/lib/ipc"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,7 +14,8 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
 import { CenterHint } from "@/components/CenterHint"
-import { FilePath, StatDelta, StatusBadge } from "@/components/StatusBadge"
+import { FileChangeList, FileListViewModeToggle } from "@/components/FileChangeList"
+import type { FileListViewMode } from "@/components/FileChangeList"
 import { BranchCombobox } from "@/components/branch-combobox"
 import { DiffViewer } from "@/components/diff/DiffViewer"
 import { useCompareStore } from "@/stores/compare"
@@ -28,31 +27,6 @@ interface Selection {
   head: string | null
 }
 
-function FileRow({
-  file,
-  active,
-  onClick,
-}: {
-  file: FileChange
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "flex h-8 cursor-pointer items-center gap-2 px-3 text-[13px] hover:bg-accent/50",
-        active && "bg-accent text-accent-foreground",
-      )}
-      title={file.oldPath ? `${file.oldPath} → ${file.newPath}` : file.newPath}
-    >
-      <StatusBadge status={file.status} />
-      <FilePath path={file.newPath} className="min-w-0 flex-1 truncate" />
-      <StatDelta additions={file.additions} deletions={file.deletions} />
-    </div>
-  )
-}
-
 export function BranchCompareModule({ project }: ModuleProps) {
   const repo = project.path
   const branches = useAsync(() => ipc.listBranches(repo), [repo])
@@ -62,6 +36,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
   const [sel, setSel] = useState<Selection | null>(null)
   const [fileSelPath, setFileSelPath] = useState<string | null>(null)
   const [listTab, setListTab] = useState<"files" | "commits">("files")
+  const [viewMode, setViewMode] = useState<FileListViewMode>("flat")
 
   useRefreshListener(() => {
     branches.reload()
@@ -253,13 +228,20 @@ export function BranchCompareModule({ project }: ModuleProps) {
               onValueChange={(v) => setListTab(v as "files" | "commits")}
               className="flex h-full min-h-0 flex-col"
             >
-              <div className="shrink-0 border-b px-2 pt-1.5">
+              <div className="flex h-9 shrink-0 items-center justify-between gap-1 border-b px-2">
                 <TabsList className="h-7">
                   <TabsTrigger value="files">文件 {files.length}</TabsTrigger>
                   <TabsTrigger value="commits">提交 {commits.length}</TabsTrigger>
                 </TabsList>
+                {listTab === "files" && files.length > 0 && (
+                  <FileListViewModeToggle value={viewMode} onChange={setViewMode} />
+                )}
               </div>
-              <TabsContent value="files" className="min-h-0 flex-1 overflow-y-auto p-1">
+              <TabsContent
+                value="files"
+                forceMount
+                className="min-h-0 flex-1 overflow-auto p-1 data-[state=inactive]:hidden"
+              >
                 {files.length === 0 ? (
                   <CenterHint
                     icon={GitCompareArrows}
@@ -267,14 +249,13 @@ export function BranchCompareModule({ project }: ModuleProps) {
                     desc="两个分支的内容完全一致。"
                   />
                 ) : (
-                  files.map((f) => (
-                    <FileRow
-                      key={`${f.status}:${f.newPath}`}
-                      file={f}
-                      active={selectedFile?.newPath === f.newPath}
-                      onClick={() => setFileSelPath(f.newPath)}
-                    />
-                  ))
+                  <FileChangeList
+                    key={`${base}:${head}`}
+                    files={files}
+                    viewMode={viewMode}
+                    selectedPath={selectedFile?.newPath ?? null}
+                    onSelect={setFileSelPath}
+                  />
                 )}
               </TabsContent>
               <TabsContent

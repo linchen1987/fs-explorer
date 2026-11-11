@@ -1,6 +1,6 @@
 //! 暴露给前端的 Tauri commands（薄封装，逻辑都在 files/git/state 模块中）。
 
-use crate::state::{AppState, Project, now_rfc3339};
+use crate::state::{AppState, Project, now_rfc3339, sort_projects_newest_first};
 use tauri::State;
 
 #[tauri::command]
@@ -40,8 +40,9 @@ pub async fn add_project(state: State<'_, AppState>, path: String) -> Result<Pro
         name,
         added_at: now_rfc3339(),
     };
-    projects.push(project.clone());
-    projects.sort_by(|a, b| a.name.cmp(&b.name));
+    // 新项先放在最前，配合稳定排序，确保同一秒内后添加的项目也排在前面。
+    projects.insert(0, project.clone());
+    sort_projects_newest_first(&mut projects);
     state.save(&projects)?;
     Ok(project)
 }
