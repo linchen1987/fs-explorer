@@ -19,6 +19,7 @@ import type { FileListViewMode } from "@/components/FileChangeList"
 import { BranchCombobox } from "@/components/branch-combobox"
 import { DiffViewer } from "@/components/diff/DiffViewer"
 import { useCompareStore } from "@/stores/compare"
+import { useFileNavigationStore } from "@/stores/file-navigation"
 import type { ModuleProps } from "@/modules/registry"
 
 interface Selection {
@@ -32,6 +33,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
   const branches = useAsync(() => ipc.listBranches(repo), [repo])
   const saved = useCompareStore((s) => s.selections[repo])
   const setSelection = useCompareStore((s) => s.setSelection)
+  const openFile = useFileNavigationStore((s) => s.openFile)
 
   const [sel, setSel] = useState<Selection | null>(null)
   const [fileSelPath, setFileSelPath] = useState<string | null>(null)
@@ -255,6 +257,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
                     viewMode={viewMode}
                     selectedPath={selectedFile?.newPath ?? null}
                     onSelect={setFileSelPath}
+                    onOpenFile={(path) => openFile(repo, path)}
                   />
                 )}
               </TabsContent>

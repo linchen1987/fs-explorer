@@ -1,6 +1,7 @@
 import type { ProjectFileContent } from "@git-gui/core"
-import { splitPath } from "@git-gui/core"
-import { ArrowLeft, ArrowRight, Code2, Eye, FileCode2, Loader2, Pencil, Save } from "lucide-react"
+import { ArrowLeft, ArrowRight, Code2, Copy, Eye, FileCode2, Loader2, Pencil, Save } from "lucide-react"
+import { toast } from "sonner"
+import { errText } from "@/lib/async"
 import { CenterHint } from "@/components/CenterHint"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -71,8 +72,17 @@ export function FileViewer({
     )
   }
 
-  const path = splitPath(file?.path ?? selectedPath)
+  const currentPath = file?.path ?? selectedPath
   const canPreview = file?.kind === "text" && (isMarkdown(file.path) || isSvg(file.path))
+
+  async function copyPath() {
+    try {
+      await navigator.clipboard.writeText(currentPath)
+      toast.success("文件路径已复制", { description: currentPath })
+    } catch (error) {
+      toast.error("复制文件路径失败", { description: errText(error) })
+    }
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -100,12 +110,22 @@ export function FileViewer({
           </Button>
         </div>
         <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
-        <span className="shrink-0 text-sm font-medium">{path.base}</span>
-        {path.dir && (
-          <span className="min-w-0 truncate text-xs text-muted-foreground" title={file?.path ?? selectedPath}>
-            {path.dir}
-          </span>
-        )}
+        <span
+          className="min-w-0 flex-1 cursor-text select-text truncate text-sm font-medium"
+          title={currentPath}
+        >
+          {currentPath}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0"
+          aria-label="复制文件路径"
+          title="复制文件路径"
+          onClick={() => void copyPath()}
+        >
+          <Copy />
+        </Button>
         {conflicted && (
           <Badge variant="destructive" className="h-5 shrink-0 px-1.5 text-[10px] font-normal">
             合并冲突

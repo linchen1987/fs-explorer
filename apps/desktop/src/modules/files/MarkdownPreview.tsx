@@ -22,6 +22,17 @@ function MarkdownPre({
   return <pre {...props}>{children}</pre>
 }
 
+function MarkdownTable({
+  node: _node,
+  ...props
+}: React.ComponentProps<"table"> & { node?: unknown }) {
+  return (
+    <div className="markdown-table-wrapper">
+      <table {...props} />
+    </div>
+  )
+}
+
 function MarkdownFrontMatter({ frontMatter }: { frontMatter: MarkdownFrontMatter }) {
   const { entries, raw } = frontMatter
   if (!entries) {
@@ -117,6 +128,7 @@ export function MarkdownPreview({
           remarkPlugins={[remarkGfm]}
           components={{
             pre: MarkdownPre,
+            table: MarkdownTable,
             img: (props) => <MarkdownImage {...props} repo={repo} filePath={path} />,
             a: ({ href, children, node: _node, ...props }) => {
               const external = href ? isRemoteSource(href) : false

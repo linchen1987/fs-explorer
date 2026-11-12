@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { ChevronRight, Folder, FolderOpen, List, ListTree } from "lucide-react"
+import { ChevronRight, FileCode2, Folder, FolderOpen, List, ListTree } from "lucide-react"
 import { buildFileChangeTree } from "@git-gui/core"
 import type { FileChange, FileChangeTreeNode } from "@git-gui/core"
 import { cn } from "@/lib/utils"
@@ -43,21 +43,24 @@ function FileChangeRow({
   file,
   active,
   onSelect,
+  onOpenFile,
   displayName,
   depth = 0,
 }: {
   file: FileChange
   active: boolean
   onSelect: (path: string) => void
+  onOpenFile?: (path: string) => void
   displayName?: string
   depth?: number
 }) {
-  return (
+  const selectButton = (
     <button
       type="button"
       onClick={() => onSelect(file.newPath)}
       className={cn(
-        "flex h-8 w-full cursor-pointer items-center gap-2 pr-3 text-left text-[13px] hover:bg-accent/50",
+        "flex h-8 w-full cursor-pointer items-center gap-2 text-left text-[13px] hover:bg-accent/50",
+        onOpenFile ? "pr-9" : "pr-3",
         active && "bg-accent text-accent-foreground",
       )}
       style={{ paddingLeft: `${12 + depth * 14}px` }}
@@ -71,6 +74,23 @@ function FileChangeRow({
       )}
       <StatDelta additions={file.additions} deletions={file.deletions} />
     </button>
+  )
+
+  if (!onOpenFile) return selectButton
+  return (
+    <div className="group/row relative">
+      {selectButton}
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        className="absolute top-1 right-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/row:opacity-100"
+        title="在文件中打开"
+        aria-label={`在文件中打开 ${file.newPath}`}
+        onClick={() => onOpenFile(file.newPath)}
+      >
+        <FileCode2 />
+      </Button>
+    </div>
   )
 }
 
@@ -87,6 +107,7 @@ function FileChangeTreeNodes({
   onToggle: (path: string) => void
   selectedPath: string | null
   onSelect: (path: string) => void
+  onOpenFile?: (path: string) => void
 }) {
   return (
     <>
@@ -98,6 +119,7 @@ function FileChangeTreeNodes({
               file={node.entry}
               active={fileProps.selectedPath === node.path}
               onSelect={fileProps.onSelect}
+              onOpenFile={fileProps.onOpenFile}
               displayName={node.name}
               depth={depth}
             />
@@ -151,11 +173,13 @@ export function FileChangeList({
   viewMode,
   selectedPath,
   onSelect,
+  onOpenFile,
 }: {
   files: readonly FileChange[]
   viewMode: FileListViewMode
   selectedPath: string | null
   onSelect: (path: string) => void
+  onOpenFile?: (path: string) => void
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const tree = useMemo(() => buildFileChangeTree(files), [files])
@@ -176,6 +200,7 @@ export function FileChangeList({
         file={file}
         active={selectedPath === file.newPath}
         onSelect={onSelect}
+        onOpenFile={onOpenFile}
       />
     ))
   }
@@ -188,6 +213,7 @@ export function FileChangeList({
       onToggle={toggleDirectory}
       selectedPath={selectedPath}
       onSelect={onSelect}
+      onOpenFile={onOpenFile}
     />
   )
 }

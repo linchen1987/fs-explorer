@@ -100,9 +100,16 @@
   }
   .markdown-preview table {
     width: 100%;
-    margin: 0 0 1rem;
     border-collapse: collapse;
   }
+  .markdown-preview .markdown-table-wrapper {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 0 1rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .markdown-preview .markdown-frontmatter { margin: 0 0 1rem; }
   .markdown-preview th,
   .markdown-preview td {
     border: 1px solid var(--border);
