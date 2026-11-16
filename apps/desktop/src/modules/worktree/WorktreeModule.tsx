@@ -291,7 +291,7 @@ export function WorktreeModule({ project }: ModuleProps) {
   })
 
   const [sel, setSel] = useState<Selection | null>(null)
-  const [viewMode, setViewMode] = useState<FileListViewMode>("flat")
+  const [viewMode, setViewMode] = useState<FileListViewMode>("tree")
   const [collapsedDirectories, setCollapsedDirectories] = useState<Record<Kind, Set<string>>>({
     staged: new Set(),
     changes: new Set(),

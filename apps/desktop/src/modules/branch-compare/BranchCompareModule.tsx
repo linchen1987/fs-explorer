@@ -38,7 +38,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
   const [sel, setSel] = useState<Selection | null>(null)
   const [fileSelPath, setFileSelPath] = useState<string | null>(null)
   const [listTab, setListTab] = useState<"files" | "commits">("files")
-  const [viewMode, setViewMode] = useState<FileListViewMode>("flat")
+  const [viewMode, setViewMode] = useState<FileListViewMode>("tree")
 
   useRefreshListener(() => {
     branches.reload()

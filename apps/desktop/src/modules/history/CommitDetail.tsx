@@ -32,7 +32,7 @@ export function CommitDetail({
   diffError: string | null
 }) {
   const files = useMemo(() => changes?.files ?? [], [changes])
-  const [viewMode, setViewMode] = useState<FileListViewMode>("flat")
+  const [viewMode, setViewMode] = useState<FileListViewMode>("tree")
   const fullDate = new Date(commit.timestamp * 1000).toLocaleString("zh-CN")
 
   async function copySha() {

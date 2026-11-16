@@ -18,15 +18,6 @@ export function FileListViewModeToggle({
   return (
     <div className="flex items-center gap-0.5" role="group" aria-label="文件展示形式">
       <Button
-        variant={value === "flat" ? "secondary" : "ghost"}
-        size="xs"
-        title="平铺展示"
-        aria-pressed={value === "flat"}
-        onClick={() => onChange("flat")}
-      >
-        <List /> 平铺
-      </Button>
-      <Button
         variant={value === "tree" ? "secondary" : "ghost"}
         size="xs"
         title="树形展示"
@@ -34,6 +25,15 @@ export function FileListViewModeToggle({
         onClick={() => onChange("tree")}
       >
         <ListTree /> 树形
+      </Button>
+      <Button
+        variant={value === "flat" ? "secondary" : "ghost"}
+        size="xs"
+        title="平铺展示"
+        aria-pressed={value === "flat"}
+        onClick={() => onChange("flat")}
+      >
+        <List /> 平铺
       </Button>
     </div>
   )
