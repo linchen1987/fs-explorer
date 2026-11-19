@@ -9,6 +9,7 @@ import { useTheme } from "next-themes"
 import "@xterm/xterm/css/xterm.css"
 import { errText } from "@/lib/async"
 import { ipc } from "@/lib/ipc"
+import { useTerminalStore } from "@/stores/terminal"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -215,7 +216,7 @@ function TerminalSession({ repo, visible, onStatusChange, onExit }: TerminalSess
       terminalRef.current = null
       fitRef.current = null
     }
-    // 每个 TerminalSession 绑定当前 repo；主题由单独 effect 更新。
+    // repo 由全局会话固定，项目切换不会重建 TerminalSession；主题由单独 effect 更新。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repo, onExit, onStatusChange])
 
@@ -252,17 +253,18 @@ export default function TerminalPanel({
   const [status, setStatus] = useState<TerminalStatus>("connecting")
   const [started, setStarted] = useState(visible)
   const dragRef = useRef<{ y: number; height: number } | null>(null)
+  const resetTerminal = useTerminalStore((s) => s.reset)
 
   useEffect(() => {
     if (visible) setStarted(true)
   }, [visible])
 
   const handleExit = useCallback(() => {
-    // 自然退出后关闭并重置；下次打开时创建一个全新的 shell。
+    // 自然退出后清空全局会话；下次打开时按当前项目创建新 shell。
     setStarted(false)
     setStatus("connecting")
-    onHide()
-  }, [onHide])
+    resetTerminal()
+  }, [resetTerminal])
 
   function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return
@@ -343,7 +345,6 @@ export default function TerminalPanel({
       </header>
       {started && (
         <TerminalSession
-          key={repo}
           repo={repo}
           visible={visible}
           onStatusChange={setStatus}

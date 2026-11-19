@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from "react"
+import { Suspense, useCallback, useEffect, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
@@ -25,8 +25,7 @@ import { CenterHint } from "@/components/CenterHint"
 import { MODULES } from "@/modules/registry"
 import { useProjectsStore, useSelectedProject } from "@/stores/projects"
 import { useFileNavigationStore } from "@/stores/file-navigation"
-
-const TerminalPanel = lazy(() => import("@/components/terminal/TerminalPanel"))
+import { useTerminalStore } from "@/stores/terminal"
 
 function Welcome() {
   const add = useProjectsStore((s) => s.add)
@@ -75,8 +74,8 @@ export function MainArea() {
   const status = useProjectsStore((s) => project ? s.statuses[project.path] : undefined)
   const refreshStatus = useProjectsStore((s) => s.refreshStatus)
   const [active, setActive] = useState<string>(MODULES[0].id)
-  const [terminalOpen, setTerminalOpen] = useState(false)
-  const [terminalMounted, setTerminalMounted] = useState(false)
+  const terminalOpen = useTerminalStore((s) => s.visible)
+  const toggleTerminal = useTerminalStore((s) => s.toggle)
   const [mounted, setMounted] = useState<{ repo: string | null; ids: string[] }>({
     repo: null,
     ids: [MODULES[0].id],
@@ -90,13 +89,9 @@ export function MainArea() {
     void refreshStatus(repo)
   }, [repo, refreshStatus])
 
-  const toggleTerminal = useCallback(() => {
-    if (!repo) return
-    setTerminalMounted(true)
-    setTerminalOpen((value) => !value)
-  }, [repo])
-
-  const hideTerminal = useCallback(() => setTerminalOpen(false), [])
+  const handleToggleTerminal = useCallback(() => {
+    toggleTerminal(project)
+  }, [project, toggleTerminal])
 
   const activateModule = useCallback((id: string) => {
     if (!repo) return
@@ -125,7 +120,7 @@ export function MainArea() {
       ) {
         event.preventDefault()
         event.stopPropagation()
-        toggleTerminal()
+        handleToggleTerminal()
         return
       }
 
@@ -143,7 +138,7 @@ export function MainArea() {
     // 使用捕获阶段，确保编辑器获得焦点时也能响应快捷键。
     window.addEventListener("keydown", handleKeyDown, true)
     return () => window.removeEventListener("keydown", handleKeyDown, true)
-  }, [refresh, toggleTerminal])
+  }, [handleToggleTerminal, refresh])
 
   if (!project) {
     return (
@@ -199,7 +194,7 @@ export function MainArea() {
               <Button
                 variant={terminalOpen ? "secondary" : "ghost"}
                 size="icon-sm"
-                onClick={toggleTerminal}
+                onClick={handleToggleTerminal}
                 aria-keyshortcuts="Meta+J Control+J Meta+` Control+`"
                 aria-pressed={terminalOpen}
               >
@@ -259,17 +254,6 @@ export function MainArea() {
             </TabsContent>
           ))}
         </Tabs>
-        {terminalMounted && (
-          <Suspense fallback={terminalOpen ? <div className="flex h-[260px] shrink-0 items-center justify-center border-t text-xs text-muted-foreground">正在加载终端…</div> : null}>
-            <TerminalPanel
-              key={project.path}
-              repo={project.path}
-              projectName={project.name}
-              visible={terminalOpen}
-              onHide={hideTerminal}
-            />
-          </Suspense>
-        )}
       </div>
     </div>
   )

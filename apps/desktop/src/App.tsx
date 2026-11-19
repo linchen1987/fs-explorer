@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/resizable"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { MainArea } from "@/components/layout/MainArea"
+import { GlobalTerminal } from "@/components/terminal/GlobalTerminal"
 import { useProjectsStore } from "@/stores/projects"
 
 export default function App() {
@@ -37,7 +38,12 @@ export default function App() {
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel defaultSize="81%" className="min-w-0">
-          <MainArea />
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="min-h-0 flex-1">
+              <MainArea />
+            </div>
+            <GlobalTerminal />
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
       <Toaster position="bottom-right" richColors />
