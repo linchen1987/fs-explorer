@@ -32,6 +32,7 @@ function listProjectDirectory(repo: string, parent: string, limit: number): Prom
 
 export const ipc = {
   gitVersion: () => invoke<string>("git_version"),
+  restartApp: () => invoke<void>("restart_app"),
 
   listProjects: () => invoke<Project[]>("list_projects"),
   addProject: (path: string) => invoke<Project>("add_project", { path }),

@@ -1,11 +1,17 @@
 //! 暴露给前端的 Tauri commands（薄封装，逻辑都在 files/git/state 模块中）。
 
 use crate::state::{AppState, Project, now_rfc3339, sort_projects_newest_first};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub async fn git_version() -> Result<String, String> {
     crate::git::git_version()
+}
+
+/// 重启当前应用；调用成功后当前进程会退出，不会返回前端。
+#[tauri::command]
+pub fn restart_app(app: AppHandle) {
+    app.restart()
 }
 
 #[tauri::command]

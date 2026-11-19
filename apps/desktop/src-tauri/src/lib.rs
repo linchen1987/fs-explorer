@@ -21,6 +21,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::git_version,
+            commands::restart_app,
             commands::list_projects,
             commands::add_project,
             commands::remove_project,

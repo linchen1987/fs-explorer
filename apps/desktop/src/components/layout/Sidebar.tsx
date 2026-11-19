@@ -8,11 +8,13 @@ import {
   MoreHorizontal,
   Plus,
   RefreshCw,
+  RotateCcw,
   Trash2,
 } from "lucide-react"
 import type { Project } from "@git-gui/core"
 import logoUrl from "@/assets/logo.svg"
 import { errText } from "@/lib/async"
+import { ipc } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -175,6 +177,14 @@ export function Sidebar() {
     }
   }
 
+  async function handleRestart() {
+    try {
+      await ipc.restartApp()
+    } catch (e) {
+      toast.error("重启应用失败", { description: errText(e) })
+    }
+  }
+
   return (
     <aside className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-12 shrink-0 items-center gap-2 px-3">
@@ -226,13 +236,24 @@ export function Sidebar() {
 
       <div className="flex h-10 shrink-0 items-center gap-1 border-t border-sidebar-border px-3 text-[11px] text-muted-foreground">
         <ModeToggle />
-        <span className="ml-1 truncate" title={gitVersionError ?? gitVersion ?? ""}>
+        <span
+          className="ml-1 min-w-0 flex-1 truncate"
+          title={gitVersionError ?? gitVersion ?? ""}
+        >
           {gitVersionError ? (
             <span className="text-red-500">git 不可用</span>
           ) : (
             gitVersion?.replace("git version ", "git ")
           )}
         </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="xs" onClick={handleRestart}>
+              <RotateCcw /> 重启
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>关闭并重新打开应用</TooltipContent>
+        </Tooltip>
       </div>
 
       <AlertDialog
