@@ -1,5 +1,5 @@
 import type { ProjectFileContent } from "@git-gui/core"
-import { ArrowLeft, ArrowRight, Code2, Copy, Eye, FileCode2, Loader2, Pencil, Save } from "lucide-react"
+import { ArrowLeft, ArrowRight, Code2, Copy, Eye, FileCode2 } from "lucide-react"
 import { toast } from "sonner"
 import { errText } from "@/lib/async"
 import { CenterHint } from "@/components/CenterHint"
@@ -23,14 +23,10 @@ interface FileViewerProps {
   loading: boolean
   error: string | null
   text: string
-  editing: boolean
   dirty: boolean
   saving: boolean
   mode: FileViewMode
   onModeChange: (mode: FileViewMode) => void
-  onEdit: () => void
-  onCancel: () => void
-  onSave: () => void
   onChange: (value: string) => void
   onOpenFile: (path: string) => void
   canGoBack: boolean
@@ -47,14 +43,10 @@ export function FileViewer({
   loading,
   error,
   text,
-  editing,
   dirty,
   saving,
   mode,
   onModeChange,
-  onEdit,
-  onCancel,
-  onSave,
   onChange,
   onOpenFile,
   canGoBack,
@@ -139,7 +131,7 @@ export function FileViewer({
         )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {file && <span className="text-[11px] text-muted-foreground">{formatSize(file.size)}</span>}
-          {canPreview && !editing && (
+          {canPreview && (
             <Tabs value={mode} onValueChange={(value) => onModeChange(value as FileViewMode)} className="gap-0">
               <TabsList className="h-7">
                 <TabsTrigger value="code" className="gap-1 px-2 text-xs">
@@ -151,21 +143,6 @@ export function FileViewer({
               </TabsList>
             </Tabs>
           )}
-          {file?.kind === "text" && (editing ? (
-            <>
-              <Button variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
-                取消
-              </Button>
-              <Button size="sm" onClick={onSave} disabled={!dirty || saving} title="保存（⌘/Ctrl + S）">
-                {saving ? <Loader2 className="animate-spin" /> : <Save />}
-                保存
-              </Button>
-            </>
-          ) : (
-            <Button variant="outline" size="sm" onClick={onEdit}>
-              <Pencil /> 编辑
-            </Button>
-          ))}
         </div>
       </div>
       <div className="min-h-0 flex-1">
@@ -186,10 +163,8 @@ export function FileViewer({
             repo={repo}
             file={file}
             text={text}
-            editing={editing}
             mode={mode}
             onChange={onChange}
-            onSave={onSave}
             onOpenFile={onOpenFile}
           />
         )}

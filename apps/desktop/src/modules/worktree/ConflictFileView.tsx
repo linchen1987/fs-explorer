@@ -51,10 +51,8 @@ export function ConflictFileView({ repo, path }: { repo: string; path: string })
           repo={repo}
           file={file}
           text={file.text ?? ""}
-          editing={false}
+          readOnly
           mode="code"
-          onChange={() => {}}
-          onSave={() => {}}
         />
       </div>
     </div>

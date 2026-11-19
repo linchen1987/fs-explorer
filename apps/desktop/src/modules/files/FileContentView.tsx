@@ -1,9 +1,11 @@
-import { lazy, Suspense, useEffect, useMemo } from "react"
+import { lazy, Suspense, useEffect, useMemo, useState } from "react"
 import type { ProjectFileContent } from "@git-gui/core"
 import { FileWarning } from "lucide-react"
 import { CenterHint } from "@/components/CenterHint"
-import { CodeEditor } from "./CodeEditor"
 
+const CodeEditor = lazy(() =>
+  import("./CodeEditor").then((module) => ({ default: module.CodeEditor })),
+)
 const MarkdownPreview = lazy(() =>
   import("./MarkdownPreview").then((module) => ({ default: module.MarkdownPreview })),
 )
@@ -24,6 +26,14 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+function EditorLoading() {
+  return (
+    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+      正在加载编辑器…
+    </div>
+  )
+}
+
 function SvgPreview({ text }: { text: string }) {
   const url = useMemo(
     () => URL.createObjectURL(new Blob([text], { type: "image/svg+xml" })),
@@ -37,14 +47,67 @@ function SvgPreview({ text }: { text: string }) {
   )
 }
 
+interface TextFileContentProps {
+  repo: string
+  file: ProjectFileContent
+  text: string
+  readOnly: boolean
+  mode: FileViewMode
+  onChange?: (value: string) => void
+  onOpenFile: (path: string) => void
+}
+
+function TextFileContent({
+  repo,
+  file,
+  text,
+  readOnly,
+  mode,
+  onChange,
+  onOpenFile,
+}: TextFileContentProps) {
+  const markdown = isMarkdown(file.path)
+  const svg = isSvg(file.path)
+  const showPreview = mode === "preview" && (markdown || svg)
+  const [keepEditorMounted, setKeepEditorMounted] = useState(!showPreview)
+
+  // 默认 Markdown 预览不加载 Monaco；进入过一次源码后保留撤销栈和视图状态。
+  useEffect(() => {
+    if (!showPreview) setKeepEditorMounted(true)
+  }, [showPreview])
+
+  const mountEditor = keepEditorMounted || !showPreview
+  return (
+    <div className="h-full min-h-0">
+      {mountEditor && (
+        <div className={showPreview ? "hidden" : "h-full min-h-0"}>
+          <Suspense fallback={<EditorLoading />}>
+            <CodeEditor
+              path={file.path}
+              value={text}
+              readOnly={readOnly}
+              onChange={onChange}
+            />
+          </Suspense>
+        </div>
+      )}
+      {showPreview && markdown && (
+        <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载预览…</div>}>
+          <MarkdownPreview repo={repo} path={file.path} text={text} onOpenFile={onOpenFile} />
+        </Suspense>
+      )}
+      {showPreview && svg && <SvgPreview text={text} />}
+    </div>
+  )
+}
+
 interface FileContentViewProps {
   repo: string
   file: ProjectFileContent
   text: string
-  editing: boolean
+  readOnly?: boolean
   mode: FileViewMode
-  onChange: (value: string) => void
-  onSave: () => void
+  onChange?: (value: string) => void
   onOpenFile?: (path: string) => void
 }
 
@@ -52,10 +115,9 @@ export function FileContentView({
   repo,
   file,
   text,
-  editing,
+  readOnly = false,
   mode,
   onChange,
-  onSave,
   onOpenFile = () => {},
 }: FileContentViewProps) {
   if (file.kind === "image" && file.data && file.mime) {
@@ -95,25 +157,16 @@ export function FileContentView({
     )
   }
 
-  if (!editing && mode === "preview" && isMarkdown(file.path)) {
-    return (
-      <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载预览…</div>}>
-        <MarkdownPreview repo={repo} path={file.path} text={text} onOpenFile={onOpenFile} />
-      </Suspense>
-    )
-  }
-  if (!editing && mode === "preview" && isSvg(file.path)) {
-    return <SvgPreview text={text} />
-  }
-
   return (
-    <CodeEditor
-      key={`${file.path}:${editing ? "edit" : "view"}`}
-      path={file.path}
-      value={text}
-      readOnly={!editing}
+    <TextFileContent
+      key={`${repo}:${file.path}`}
+      repo={repo}
+      file={file}
+      text={text}
+      readOnly={readOnly}
+      mode={mode}
       onChange={onChange}
-      onSave={editing ? onSave : undefined}
+      onOpenFile={onOpenFile}
     />
   )
 }

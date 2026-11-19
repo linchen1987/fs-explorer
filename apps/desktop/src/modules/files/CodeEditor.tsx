@@ -1,150 +1,89 @@
 import { useEffect, useRef } from "react"
-import { Compartment, EditorState } from "@codemirror/state"
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands"
-import {
-  bracketMatching,
-  defaultHighlightStyle,
-  indentOnInput,
-  LanguageDescription,
-  syntaxHighlighting,
-} from "@codemirror/language"
-import { languages } from "@codemirror/language-data"
-import { oneDarkHighlightStyle } from "@codemirror/theme-one-dark"
-import {
-  drawSelection,
-  EditorView,
-  highlightSpecialChars,
-  keymap,
-  lineNumbers,
-  rectangularSelection,
-} from "@codemirror/view"
 import { useTheme } from "next-themes"
-
-const baseTheme = EditorView.theme({
-  "&": {
-    height: "100%",
-    backgroundColor: "transparent",
-    color: "var(--foreground)",
-    fontSize: "13px",
-  },
-  "&.cm-focused": { outline: "none" },
-  ".cm-scroller": {
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-    lineHeight: "1.65",
-  },
-  ".cm-content": { padding: "12px 0", caretColor: "var(--foreground)" },
-  ".cm-gutters": {
-    backgroundColor: "transparent",
-    color: "var(--muted-foreground)",
-    border: "none",
-    paddingLeft: "6px",
-  },
-  ".cm-lineNumbers .cm-gutterElement": { padding: "0 10px 0 6px" },
-  ".cm-activeLineGutter": { backgroundColor: "transparent" },
-  "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-    backgroundColor: "color-mix(in oklch, var(--primary) 20%, transparent)",
-  },
-  ".cm-cursor": { borderLeftColor: "var(--foreground)" },
-})
+import { languageForPath, monaco, monacoTheme } from "./monaco"
 
 interface CodeEditorProps {
   path: string
   value: string
   readOnly?: boolean
   onChange?: (value: string) => void
-  onSave?: () => void
 }
 
-/** 轻量 CodeMirror 封装：语言按需加载，查看与编辑共用高亮。 */
+/** VS Code 编辑器内核的薄 React 封装；实例只持有当前文件的 model。 */
 export function CodeEditor({
   path,
   value,
   readOnly = false,
   onChange,
-  onSave,
 }: CodeEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
-  const viewRef = useRef<EditorView | null>(null)
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null)
   const onChangeRef = useRef(onChange)
-  const onSaveRef = useRef(onSave)
+  const applyingValueRef = useRef(false)
   const { resolvedTheme } = useTheme()
   const dark = resolvedTheme === "dark"
   onChangeRef.current = onChange
-  onSaveRef.current = onSave
 
   useEffect(() => {
     if (!hostRef.current) return
-    const language = new Compartment()
-    const view = new EditorView({
-      parent: hostRef.current,
-      state: EditorState.create({
-        doc: value,
-        extensions: [
-          lineNumbers(),
-          highlightSpecialChars(),
-          history(),
-          drawSelection(),
-          rectangularSelection(),
-          indentOnInput(),
-          bracketMatching(),
-          dark
-            ? syntaxHighlighting(oneDarkHighlightStyle, { fallback: true })
-            : syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-          baseTheme,
-          language.of([]),
-          EditorState.readOnly.of(readOnly),
-          EditorView.editable.of(!readOnly),
-          EditorView.contentAttributes.of({
-            "aria-label": readOnly ? "文件内容" : "编辑文件",
-          }),
-          keymap.of([
-            {
-              key: "Mod-s",
-              preventDefault: true,
-              run: () => {
-                onSaveRef.current?.()
-                return true
-              },
-            },
-            ...defaultKeymap,
-            ...historyKeymap,
-            indentWithTab,
-          ]),
-          EditorView.updateListener.of((update) => {
-            if (update.docChanged) onChangeRef.current?.(update.state.doc.toString())
-          }),
-        ],
-      }),
+    const editor = monaco.editor.create(hostRef.current, {
+      value,
+      language: languageForPath(path),
+      theme: monacoTheme(dark),
+      readOnly,
+      domReadOnly: readOnly,
+      readOnlyMessage: { value: "此视图仅用于查看文件内容" },
+      ariaLabel: readOnly ? "文件内容" : "编辑文件",
+      automaticLayout: true,
+      fixedOverflowWidgets: true,
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+      fontSize: 13,
+      lineHeight: 21,
+      padding: { top: 12, bottom: 12 },
+      scrollBeyondLastLine: false,
+      smoothScrolling: true,
+      minimap: { enabled: true },
+      bracketPairColorization: { enabled: true },
+      guides: { bracketPairs: "active" },
     })
-    viewRef.current = view
-
-    const description = LanguageDescription.matchFilename(languages, path)
-    let cancelled = false
-    if (description) {
-      void description.load().then((support) => {
-        if (!cancelled && viewRef.current === view) {
-          view.dispatch({ effects: language.reconfigure(support) })
-        }
-      }).catch(() => {
-        // 语言包加载失败时保留纯文本查看/编辑能力。
-      })
-    }
+    editorRef.current = editor
+    const model = editor.getModel()
+    const changeSubscription = editor.onDidChangeModelContent(() => {
+      if (!applyingValueRef.current && model) onChangeRef.current?.(model.getValue())
+    })
 
     return () => {
-      cancelled = true
-      if (viewRef.current === view) viewRef.current = null
-      view.destroy()
+      changeSubscription.dispose()
+      if (editorRef.current === editor) editorRef.current = null
+      editor.dispose()
+      model?.dispose()
     }
-    // value 由下方受控同步，其他配置变化时重建轻量编辑器实例。
+    // value、主题和只读能力由下方 Effect 增量同步，避免重建导致撤销栈丢失。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, readOnly, dark])
+  }, [path])
 
   useEffect(() => {
-    const view = viewRef.current
-    if (view && view.state.doc.toString() !== value) {
-      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } })
+    editorRef.current?.updateOptions({
+      readOnly,
+      domReadOnly: readOnly,
+      ariaLabel: readOnly ? "文件内容" : "编辑文件",
+    })
+  }, [readOnly])
+
+  useEffect(() => {
+    monaco.editor.setTheme(monacoTheme(dark))
+  }, [dark])
+
+  useEffect(() => {
+    const model = editorRef.current?.getModel()
+    if (!model || model.getValue() === value) return
+    applyingValueRef.current = true
+    try {
+      model.setValue(value)
+    } finally {
+      applyingValueRef.current = false
     }
   }, [value])
 
-  return <div ref={hostRef} className="h-full min-h-0 overflow-hidden" />
+  return <div ref={hostRef} className="h-full min-h-0 overflow-hidden bg-background" />
 }

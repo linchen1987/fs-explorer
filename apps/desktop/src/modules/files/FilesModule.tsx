@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { getCurrentWindow } from "@tauri-apps/api/window"
+import { confirm } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
 import { errText, useAsync } from "@/lib/async"
 import { emitRefresh, useRefreshListener } from "@/lib/events"
@@ -29,7 +31,6 @@ import { EMPTY_FILE_HISTORY, moveFileHistory, pushFileHistory } from "./file-his
 type PendingAction =
   | { type: "select"; path: string }
   | { type: "history"; index: number }
-  | { type: "cancel-edit" }
 
 export function FilesModule({ project, active }: ModuleProps) {
   const repo = project.path
@@ -37,11 +38,14 @@ export function FilesModule({ project, active }: ModuleProps) {
   const status = useProjectStatus(repo)
   const [history, setHistory] = useState(EMPTY_FILE_HISTORY)
   const selectedPath = history.paths[history.index] ?? null
-  const [editing, setEditing] = useState(false)
   const [mode, setMode] = useState<FileViewMode>("code")
   const [original, setOriginal] = useState("")
   const [draft, setDraft] = useState<string | null>(null)
+  const [savedTextSize, setSavedTextSize] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const dirtyRef = useRef(false)
+  const closePromptOpenRef = useRef(false)
   const [pending, setPending] = useState<PendingAction | null>(null)
   const openFileRequest = useFileNavigationStore((s) => s.request)
   const consumeOpenFileRequest = useFileNavigationStore((s) => s.consume)
@@ -60,34 +64,84 @@ export function FilesModule({ project, active }: ModuleProps) {
     [repo, selectedPath],
   )
   const file = content.data?.key === requestKey ? content.data.file : null
+  const displayFile = useMemo(
+    () => file?.kind === "text" && savedTextSize !== null ? { ...file, size: savedTextSize } : file,
+    [file, savedTextSize],
+  )
 
   useEffect(() => {
     if (file?.kind === "text") {
       const text = file.text ?? ""
       setOriginal(text)
       setDraft(text)
+      setSavedTextSize(file.size)
     } else {
       setOriginal("")
       setDraft(null)
+      setSavedTextSize(null)
     }
+    savingRef.current = false
     setSaving(false)
   }, [file])
 
   const dirty = useMemo(
-    () => editing && file?.kind === "text" && draft !== null && draft !== original,
-    [editing, file?.kind, draft, original],
+    () => file?.kind === "text" && draft !== null && draft !== original,
+    [file?.kind, draft, original],
   )
+  dirtyRef.current = dirty
+
+  useEffect(() => {
+    const appWindow = getCurrentWindow()
+    let disposed = false
+    let unlisten: (() => void) | undefined
+
+    void appWindow.onCloseRequested(async (event) => {
+      if (closePromptOpenRef.current) {
+        event.preventDefault()
+        return
+      }
+      if (!dirtyRef.current) return
+
+      event.preventDefault()
+      closePromptOpenRef.current = true
+      try {
+        const confirmed = await confirm(
+          "当前文件有尚未保存的修改，关闭应用后这些修改将无法恢复。",
+          {
+            title: "关闭应用？",
+            kind: "warning",
+            okLabel: "关闭应用",
+            cancelLabel: "取消",
+          },
+        )
+        if (confirmed) await appWindow.destroy()
+      } catch (error) {
+        toast.error("关闭应用失败", { description: errText(error) })
+      } finally {
+        closePromptOpenRef.current = false
+      }
+    }).then((stopListening) => {
+      if (disposed) stopListening()
+      else unlisten = stopListening
+    }).catch((error) => {
+      if (!disposed) toast.error("无法启用未保存关闭保护", { description: errText(error) })
+    })
+
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [])
 
   useRefreshListener(() => {
     if (!active) return
     setFilesRevision((current) => current + 1)
     status.reload()
-    // 刷新不能覆盖正在编辑的内容；文件列表仍可正常更新。
+    // 刷新不能覆盖尚未保存的内容；文件列表仍可正常更新。
     if (!dirty) content.reload()
   })
 
   function resetViewer(path: string) {
-    setEditing(false)
     setDraft(null)
     setOriginal("")
     setMode(isMarkdown(path) || isSvg(path) ? "preview" : "code")
@@ -124,42 +178,51 @@ export function FilesModule({ project, active }: ModuleProps) {
     consumeOpenFileRequest(openFileRequest.id)
   }, [active, consumeOpenFileRequest, dirty, openFileRequest, repo, saving, selectedPath])
 
-  function cancelEditing() {
-    if (dirty) {
-      setPending({ type: "cancel-edit" })
-      return
-    }
-    setEditing(false)
-    setDraft(original)
-  }
-
   function discardAndContinue() {
     const action = pending
     setPending(null)
     if (!action) return
     if (action.type === "select") activateSelection(action.path)
-    else if (action.type === "history") activateHistory(action.index)
-    else {
-      setEditing(false)
-      setDraft(original)
-    }
+    else activateHistory(action.index)
   }
 
-  async function save() {
-    if (!file || file.kind !== "text" || !editing || !dirty || draft === null || saving) return
+  const save = useCallback(async () => {
+    if (!file || file.kind !== "text" || !dirty || draft === null || savingRef.current) return
+    const path = file.path
+    const contentToSave = draft
+    savingRef.current = true
     setSaving(true)
     try {
-      await ipc.saveProjectFile(repo, file.path, draft)
-      setOriginal(draft)
-      toast.success("文件已保存", { description: file.path })
-      content.reload()
+      await ipc.saveProjectFile(repo, path, contentToSave)
+      // 不回读覆盖编辑器：保存期间产生的新输入仍保留为未保存草稿。
+      setOriginal(contentToSave)
+      setSavedTextSize(new TextEncoder().encode(contentToSave).byteLength)
       emitRefresh()
     } catch (error) {
       toast.error("保存失败", { description: errText(error) })
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
-  }
+  }, [dirty, draft, file, repo])
+
+  useEffect(() => {
+    if (!active || file?.kind !== "text") return
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.key.toLowerCase() !== "s"
+        || event.altKey
+        || event.shiftKey
+        || (!event.metaKey && !event.ctrlKey)
+      ) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (!event.repeat) void save()
+    }
+    // 在编辑器内外（包括 Markdown 预览）都使用同一保存入口。
+    window.addEventListener("keydown", handleKeyDown, true)
+    return () => window.removeEventListener("keydown", handleKeyDown, true)
+  }, [active, file?.kind, save])
 
   return (
     <>
@@ -180,22 +243,14 @@ export function FilesModule({ project, active }: ModuleProps) {
             repo={repo}
             selectedPath={selectedPath}
             conflicted={selectedPath ? conflictedPaths.has(selectedPath) : false}
-            file={file}
+            file={displayFile}
             loading={content.loading}
             error={content.error}
-            text={editing ? (draft ?? original) : original}
-            editing={editing}
+            text={draft ?? original}
             dirty={dirty}
             saving={saving}
             mode={mode}
             onModeChange={setMode}
-            onEdit={() => {
-              setDraft(original)
-              setMode("code")
-              setEditing(true)
-            }}
-            onCancel={cancelEditing}
-            onSave={() => void save()}
             onChange={setDraft}
             onOpenFile={selectFile}
             canGoBack={history.index > 0}

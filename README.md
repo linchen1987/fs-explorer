@@ -16,7 +16,7 @@
 | 模块 | 说明 |
 | --- | --- |
 | **工作区** | 当前 diff：已暂存 / 未暂存 / 未跟踪三组文件，点击查看 staged / unstaged / 全新增 diff，合并冲突文件可直接查看当前冲突内容，支持暂存与取消暂存（单个或整组） |
-| **文件** | 项目文件树与筛选，合并冲突文件带 U 标识；代码查看/编辑/保存（基础高亮、⌘/Ctrl+S、未保存确认）；Markdown 支持 GFM、本地图片与 Mermaid 图表渲染，SVG 支持源码/渲染预览，并支持常见图片和视频查看 |
+| **文件** | 项目文件树与筛选，合并冲突文件带 U 标识；文本打开即可通过 Monaco 编辑，支持查找替换、多光标、折叠、Minimap 与 ⌘/Ctrl+S；未保存时切换文件需确认，关闭应用需二次确认；Markdown 默认预览并可随时切换源码，支持 GFM、本地图片与 Mermaid，SVG 支持源码/渲染预览，并支持常见图片和视频查看 |
 | **提交历史** | 当前分支或所有分支的提交拓扑图，显示分支/tag 装饰，按 80 条分页加载；点击提交查看元信息、变更文件和单文件 diff（合并提交相对第一父提交） |
 | **分支对比** | 类 PR 视图：选择 base 与 head 两个分支，查看文件变更列表（M/A/D/R 状态、±行数）、每个提交、以及单文件 diff（rename 识别、二进制/模式变更提示） |
 
@@ -38,7 +38,7 @@
 - **Tauri 2**（Rust 后端执行系统 git 命令，无 libgit2 依赖）
 - **React 19 + TypeScript + Vite 8**
 - **Tailwind CSS v4 + shadcn/ui**（radix 基座）
-- **CodeMirror 6**（按需加载语言高亮）与 **react-markdown + GFM + Mermaid**（图表按需渲染）
+- **Monaco Editor**（VS Code 编辑器内核，本地 worker 与按需加载）与 **react-markdown + GFM + Mermaid**（图表按需渲染）
 - **xterm.js + portable-pty**（按需加载的本地交互式终端）
 - **zustand** 状态管理，**sonner** 错误提示
 
