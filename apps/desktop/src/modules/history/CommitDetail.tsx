@@ -9,6 +9,11 @@ import { CenterHint } from "@/components/CenterHint"
 import { FileChangeList, FileListViewModeToggle } from "@/components/FileChangeList"
 import type { FileListViewMode } from "@/components/FileChangeList"
 import { DiffViewer } from "@/components/diff/DiffViewer"
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable"
 
 export function CommitDetail({
   commit,
@@ -78,78 +83,82 @@ export function CommitDetail({
         </div>
       </div>
 
-      <div className="flex max-h-44 min-h-20 shrink-0 flex-col border-b">
-        <div className="flex h-8 shrink-0 items-center gap-2 border-b px-3 text-[11px] text-muted-foreground">
-          <span>
-            变更文件{" "}
-            <span className="font-medium text-foreground">{files.length}</span>
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            {files.length > 0 && (
-              <FileListViewModeToggle value={viewMode} onChange={setViewMode} />
-            )}
-            {changes && (
-              <div className="flex shrink-0 gap-2">
-                <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                  +{changes.totalAdditions}
-                </span>
-                <span className="font-mono text-red-600 dark:text-red-400">
-                  −{changes.totalDeletions}
-                </span>
+      <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
+        <ResizablePanel defaultSize="30%" minSize="80px" maxSize="70%">
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="flex h-8 shrink-0 items-center gap-2 border-b px-3 text-[11px] text-muted-foreground">
+              <span>
+                变更文件{" "}
+                <span className="font-medium text-foreground">{files.length}</span>
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                {files.length > 0 && (
+                  <FileListViewModeToggle value={viewMode} onChange={setViewMode} />
+                )}
+                {changes && (
+                  <div className="flex shrink-0 gap-2">
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                      +{changes.totalAdditions}
+                    </span>
+                    <span className="font-mono text-red-600 dark:text-red-400">
+                      −{changes.totalDeletions}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto py-1">
+              {changesError ? (
+                <div className="px-3 py-2 text-xs break-all text-destructive">
+                  {changesError}
+                </div>
+              ) : changesLoading && !changes ? (
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  正在读取变更文件…
+                </div>
+              ) : files.length === 0 ? (
+                <div className="flex h-full items-center justify-center px-3 py-2 text-center text-xs text-muted-foreground">
+                  {commit.parentShas.length > 1
+                    ? "相对第一父提交没有文件变化"
+                    : "该提交没有文件变化"}
+                </div>
+              ) : (
+                <FileChangeList
+                  key={commit.sha}
+                  files={files}
+                  viewMode={viewMode}
+                  selectedPath={selectedFile?.newPath ?? null}
+                  onSelect={onSelectFile}
+                />
+              )}
+            </div>
           </div>
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto py-1">
-          {changesError ? (
-            <div className="px-3 py-2 text-xs break-all text-destructive">
-              {changesError}
-            </div>
-          ) : changesLoading && !changes ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground">
-              正在读取变更文件…
-            </div>
-          ) : files.length === 0 ? (
-            <div className="flex h-full items-center justify-center px-3 py-2 text-center text-xs text-muted-foreground">
-              {commit.parentShas.length > 1
-                ? "相对第一父提交没有文件变化"
-                : "该提交没有文件变化"}
-            </div>
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultSize="70%" minSize="120px">
+          {diffError ? (
+            <CenterHint icon={FileDiff} title="读取提交 Diff 失败" desc={diffError} />
           ) : (
-            <FileChangeList
-              key={commit.sha}
-              files={files}
-              viewMode={viewMode}
-              selectedPath={selectedFile?.newPath ?? null}
-              onSelect={onSelectFile}
+            <DiffViewer
+              text={diffText}
+              loading={diffLoading}
+              emptyHint={
+                files.length === 0 ? "该提交没有文件差异" : "选择上方文件查看差异"
+              }
+              badges={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={copySha}
+                  title="复制提交 SHA"
+                >
+                  <Copy />
+                </Button>
+              }
             />
           )}
-        </div>
-      </div>
-
-      <div className="min-h-0 flex-1">
-        {diffError ? (
-          <CenterHint icon={FileDiff} title="读取提交 Diff 失败" desc={diffError} />
-        ) : (
-          <DiffViewer
-            text={diffText}
-            loading={diffLoading}
-            emptyHint={
-              files.length === 0 ? "该提交没有文件差异" : "选择上方文件查看差异"
-            }
-            badges={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={copySha}
-                title="复制提交 SHA"
-              >
-                <Copy />
-              </Button>
-            }
-          />
-        )}
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   )
 }

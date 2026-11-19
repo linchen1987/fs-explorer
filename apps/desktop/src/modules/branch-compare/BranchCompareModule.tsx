@@ -70,9 +70,6 @@ export function BranchCompareModule({ project }: ModuleProps) {
         : Promise.resolve(null),
     [repo, base, head],
   )
-  useRefreshListener(() => {
-    compare.reload()
-  })
 
   const files = useMemo(() => compare.data?.files ?? [], [compare.data])
   const commits = useMemo(() => compare.data?.commits ?? [], [compare.data])
@@ -96,6 +93,11 @@ export function BranchCompareModule({ project }: ModuleProps) {
         : Promise.resolve(null),
     [repo, base, head, selectedFile?.newPath, selectedFile?.oldPath],
   )
+  useRefreshListener(() => {
+    compare.reload()
+    // 分支名和文件路径不变时，也必须重新读取当前文件的 Diff。
+    diff.reload()
+  })
 
   function update(next: { base?: string; head?: string }) {
     const nb = next.base ?? base
