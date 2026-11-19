@@ -34,6 +34,9 @@ export function CodeEditor({
       domReadOnly: readOnly,
       readOnlyMessage: { value: "此视图仅用于查看文件内容" },
       ariaLabel: readOnly ? "文件内容" : "编辑文件",
+      // WebKit 会在 IME 组合输入时自动滚动 textarea；使用短文本避免与 Monaco 相互拉扯。
+      // https://github.com/microsoft/monaco-editor/issues/4796
+      accessibilitySupport: "off",
       automaticLayout: true,
       fixedOverflowWidgets: true,
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
