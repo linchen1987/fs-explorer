@@ -3,15 +3,19 @@
 use crate::state::{AppState, Project, now_rfc3339, sort_projects_newest_first};
 use crate::terminal::TerminalState;
 use tauri::{AppHandle, State};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 #[tauri::command]
 pub async fn git_version() -> Result<String, String> {
     crate::git::git_version()
 }
 
-/// 重启当前应用；调用成功后当前进程会退出，不会返回前端。
+/// 保存窗口状态后重启当前应用；调用成功后当前进程会退出，不会返回前端。
 #[tauri::command]
 pub fn restart_app(app: AppHandle) {
+    if let Err(error) = app.save_window_state(StateFlags::all()) {
+        eprintln!("[git-gui] 重启前保存窗口状态失败: {error}");
+    }
     app.restart()
 }
 

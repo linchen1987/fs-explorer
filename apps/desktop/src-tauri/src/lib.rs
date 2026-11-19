@@ -11,6 +11,7 @@ use terminal::TerminalState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // 支持通过 GIT_GUI_CONFIG_DIR 覆盖配置目录（调试 / 便携化）
