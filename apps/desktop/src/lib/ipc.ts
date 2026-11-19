@@ -34,6 +34,14 @@ export const ipc = {
   gitVersion: () => invoke<string>("git_version"),
   restartApp: () => invoke<void>("restart_app"),
 
+  openTerminal: (repo: string, cols: number, rows: number) =>
+    invoke<string>("open_terminal", { repo, cols, rows }),
+  writeTerminal: (id: string, data: string) =>
+    invoke<void>("write_terminal", { id, data }),
+  resizeTerminal: (id: string, cols: number, rows: number) =>
+    invoke<void>("resize_terminal", { id, cols, rows }),
+  closeTerminal: (id: string) => invoke<void>("close_terminal", { id }),
+
   listProjects: () => invoke<Project[]>("list_projects"),
   addProject: (path: string) => invoke<Project>("add_project", { path }),
   removeProject: (path: string) => invoke<void>("remove_project", { path }),

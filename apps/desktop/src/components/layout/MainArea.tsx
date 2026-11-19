@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useState } from "react"
+import { Suspense, lazy, useCallback, useEffect, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
@@ -6,6 +6,7 @@ import {
   GitBranch,
   Plus,
   RefreshCw,
+  SquareTerminal,
 } from "lucide-react"
 import { open } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
@@ -24,6 +25,8 @@ import { CenterHint } from "@/components/CenterHint"
 import { MODULES } from "@/modules/registry"
 import { useProjectsStore, useSelectedProject } from "@/stores/projects"
 import { useFileNavigationStore } from "@/stores/file-navigation"
+
+const TerminalPanel = lazy(() => import("@/components/terminal/TerminalPanel"))
 
 function Welcome() {
   const add = useProjectsStore((s) => s.add)
@@ -72,6 +75,8 @@ export function MainArea() {
   const status = useProjectsStore((s) => project ? s.statuses[project.path] : undefined)
   const refreshStatus = useProjectsStore((s) => s.refreshStatus)
   const [active, setActive] = useState<string>(MODULES[0].id)
+  const [terminalOpen, setTerminalOpen] = useState(false)
+  const [terminalMounted, setTerminalMounted] = useState(false)
   const [mounted, setMounted] = useState<{ repo: string | null; ids: string[] }>({
     repo: null,
     ids: [MODULES[0].id],
@@ -84,6 +89,14 @@ export function MainArea() {
     emitRefresh()
     void refreshStatus(repo)
   }, [repo, refreshStatus])
+
+  const toggleTerminal = useCallback(() => {
+    if (!repo) return
+    setTerminalMounted(true)
+    setTerminalOpen((value) => !value)
+  }, [repo])
+
+  const hideTerminal = useCallback(() => setTerminalOpen(false), [])
 
   const activateModule = useCallback((id: string) => {
     if (!repo) return
@@ -104,6 +117,19 @@ export function MainArea() {
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (
+        (event.code === "Backquote" || event.key.toLowerCase() === "j")
+        && !event.altKey
+        && !event.shiftKey
+        && !event.repeat
+        && (event.metaKey || event.ctrlKey)
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+        toggleTerminal()
+        return
+      }
+
+      if (
         event.key.toLowerCase() !== "r"
         || event.altKey
         || event.shiftKey
@@ -117,7 +143,7 @@ export function MainArea() {
     // 使用捕获阶段，确保编辑器获得焦点时也能响应快捷键。
     window.addEventListener("keydown", handleKeyDown, true)
     return () => window.removeEventListener("keydown", handleKeyDown, true)
-  }, [refresh])
+  }, [refresh, toggleTerminal])
 
   if (!project) {
     return (
@@ -167,7 +193,22 @@ export function MainArea() {
             )}
           </span>
         )}
-        <div className="ml-auto shrink-0">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={terminalOpen ? "secondary" : "ghost"}
+                size="icon-sm"
+                onClick={toggleTerminal}
+                aria-keyshortcuts="Meta+J Control+J Meta+` Control+`"
+                aria-pressed={terminalOpen}
+              >
+                <SquareTerminal />
+                <span className="sr-only">切换终端</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>终端（⌘J / Ctrl+J）</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -185,38 +226,51 @@ export function MainArea() {
         </div>
       </header>
 
-      {/* 模块页签 */}
-      <Tabs
-        value={active}
-        onValueChange={activateModule}
-        className="flex min-h-0 flex-1 flex-col gap-0"
-      >
-        <div className="shrink-0 border-b px-3 py-1">
-          <TabsList className="h-8 gap-1">
-            {MODULES.map((m) => (
-              <TabsTrigger key={m.id} value={m.id} className="gap-1.5 px-3">
-                <m.icon className="size-3.5" />
-                {m.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </div>
-        {MODULES.map((m) => (
-          <TabsContent
-            key={m.id}
-            value={m.id}
-            forceMount
-            className={cn("min-h-0 flex-1 outline-none data-[state=inactive]:hidden")}
-          >
-            {/* 切换项目时重挂载模块，避免旧仓库的异步数据和选择状态串入新仓库。 */}
-            {mountedIds.includes(m.id) && (
-              <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载模块…</div>}>
-                <m.component key={project.path} project={project} active={active === m.id} />
-              </Suspense>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* 模块页签 */}
+        <Tabs
+          value={active}
+          onValueChange={activateModule}
+          className="flex min-h-0 flex-1 flex-col gap-0"
+        >
+          <div className="shrink-0 border-b px-3 py-1">
+            <TabsList className="h-8 gap-1">
+              {MODULES.map((m) => (
+                <TabsTrigger key={m.id} value={m.id} className="gap-1.5 px-3">
+                  <m.icon className="size-3.5" />
+                  {m.title}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
+          {MODULES.map((m) => (
+            <TabsContent
+              key={m.id}
+              value={m.id}
+              forceMount
+              className={cn("min-h-0 flex-1 outline-none data-[state=inactive]:hidden")}
+            >
+              {/* 切换项目时重挂载模块，避免旧仓库的异步数据和选择状态串入新仓库。 */}
+              {mountedIds.includes(m.id) && (
+                <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">正在加载模块…</div>}>
+                  <m.component key={project.path} project={project} active={active === m.id} />
+                </Suspense>
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+        {terminalMounted && (
+          <Suspense fallback={terminalOpen ? <div className="flex h-[260px] shrink-0 items-center justify-center border-t text-xs text-muted-foreground">正在加载终端…</div> : null}>
+            <TerminalPanel
+              key={project.path}
+              repo={project.path}
+              projectName={project.name}
+              visible={terminalOpen}
+              onHide={hideTerminal}
+            />
+          </Suspense>
+        )}
+      </div>
     </div>
   )
 }

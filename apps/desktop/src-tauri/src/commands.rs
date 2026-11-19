@@ -1,6 +1,7 @@
-//! 暴露给前端的 Tauri commands（薄封装，逻辑都在 files/git/state 模块中）。
+//! 暴露给前端的 Tauri commands（薄封装，逻辑都在 files/git/state/terminal 模块中）。
 
 use crate::state::{AppState, Project, now_rfc3339, sort_projects_newest_first};
+use crate::terminal::TerminalState;
 use tauri::{AppHandle, State};
 
 #[tauri::command]
@@ -186,4 +187,39 @@ pub async fn stage_paths(repo: String, paths: Vec<String>) -> Result<(), String>
 #[tauri::command]
 pub async fn unstage_paths(repo: String, paths: Vec<String>) -> Result<(), String> {
     crate::git::diff::unstage_paths(&repo, &paths)
+}
+
+#[tauri::command]
+pub fn open_terminal(
+    app: AppHandle,
+    state: State<'_, TerminalState>,
+    repo: String,
+    cols: u16,
+    rows: u16,
+) -> Result<String, String> {
+    crate::terminal::open(app, state.inner(), repo, cols, rows)
+}
+
+#[tauri::command]
+pub fn write_terminal(
+    state: State<'_, TerminalState>,
+    id: String,
+    data: String,
+) -> Result<(), String> {
+    crate::terminal::write(state.inner(), &id, &data)
+}
+
+#[tauri::command]
+pub fn resize_terminal(
+    state: State<'_, TerminalState>,
+    id: String,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
+    crate::terminal::resize(state.inner(), &id, cols, rows)
+}
+
+#[tauri::command]
+pub fn close_terminal(app: AppHandle, state: State<'_, TerminalState>, id: String) {
+    crate::terminal::close(&app, state.inner(), &id);
 }

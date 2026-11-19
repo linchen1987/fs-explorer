@@ -2,9 +2,11 @@ mod commands;
 mod files;
 mod git;
 mod state;
+mod terminal;
 
 use state::AppState;
 use tauri::Manager;
+use terminal::TerminalState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -17,6 +19,7 @@ pub fn run() {
                 _ => app.path().app_config_dir()?,
             };
             app.manage(AppState::init(config_dir));
+            app.manage(TerminalState::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -40,6 +43,10 @@ pub fn run() {
             commands::diff_untracked_file,
             commands::stage_paths,
             commands::unstage_paths,
+            commands::open_terminal,
+            commands::write_terminal,
+            commands::resize_terminal,
+            commands::close_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
