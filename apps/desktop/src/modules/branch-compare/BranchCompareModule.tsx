@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { ArrowLeftRight, GitCompareArrows, Loader2 } from "lucide-react"
-import { timeAgo } from "@git-gui/core"
+import { timeAgo } from "@fs-explorer/core"
 import { errText, useAsync } from "@/lib/async"
 import { useRefreshListener } from "@/lib/events"
 import { ipc } from "@/lib/ipc"

@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { Loader2 } from "lucide-react"
-import type { CommitGraphRow, HistoryCommit } from "@git-gui/core"
-import { layoutCommitGraph, timeAgo } from "@git-gui/core"
+import type { CommitGraphRow, HistoryCommit } from "@fs-explorer/core"
+import { layoutCommitGraph, timeAgo } from "@fs-explorer/core"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { GitCommitHorizontal, History as HistoryIcon } from "lucide-react"
-import type { HistoryCommit, HistoryPage } from "@git-gui/core"
+import type { HistoryCommit, HistoryPage } from "@fs-explorer/core"
 import { errText, useAsync } from "@/lib/async"
 import { useRefreshListener } from "@/lib/events"
 import { ipc } from "@/lib/ipc"

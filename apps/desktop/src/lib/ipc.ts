@@ -13,7 +13,7 @@ import type {
   Project,
   ProjectFileContent,
   WorktreeStatus,
-} from "@git-gui/core"
+} from "@fs-explorer/core"
 
 const projectDirectoryRequests = new Map<string, Promise<FileTreePage>>()
 

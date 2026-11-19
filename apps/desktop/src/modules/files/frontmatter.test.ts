@@ -5,7 +5,7 @@ describe("parseMarkdownFrontMatter", () => {
   it("将开头的 YAML Front Matter 解析为元数据并保留正文", () => {
     const result = parseMarkdownFrontMatter([
       "---",
-      "title: Git GUI",
+      "title: FS Explorer",
       "published: true",
       "tags:",
       "  - git",
@@ -19,7 +19,7 @@ describe("parseMarkdownFrontMatter", () => {
 
     expect(result.body).toBe("# 正文\n")
     expect(result.frontMatter?.entries).toEqual([
-      { name: "title", value: "Git GUI" },
+      { name: "title", value: "FS Explorer" },
       { name: "published", value: "true" },
       { name: "tags", value: "- git\n- gui" },
       { name: "author", value: "name: Lin" },

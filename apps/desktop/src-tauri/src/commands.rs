@@ -14,7 +14,7 @@ pub async fn git_version() -> Result<String, String> {
 #[tauri::command]
 pub fn restart_app(app: AppHandle) {
     if let Err(error) = app.save_window_state(StateFlags::all()) {
-        eprintln!("[git-gui] 重启前保存窗口状态失败: {error}");
+        eprintln!("[fs-explorer] 重启前保存窗口状态失败: {error}");
     }
     app.restart()
 }

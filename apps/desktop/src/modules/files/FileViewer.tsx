@@ -1,4 +1,4 @@
-import type { ProjectFileContent } from "@git-gui/core"
+import type { ProjectFileContent } from "@fs-explorer/core"
 import { ArrowLeft, ArrowRight, Code2, Copy, Eye, FileCode2 } from "lucide-react"
 import { toast } from "sonner"
 import { errText } from "@/lib/async"

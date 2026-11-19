@@ -34,14 +34,35 @@ pub(crate) fn sort_projects_newest_first(projects: &mut [Project]) {
 
 impl AppState {
     /// 初始化：读取配置目录中的 projects.json（不存在或损坏时从空列表开始）。
+    #[cfg(test)]
     pub fn init(dir: PathBuf) -> Self {
+        Self::init_with_legacy(dir, None)
+    }
+
+    /// 新配置尚不存在时导入更名前的项目列表，并立即写入新配置目录。
+    pub fn init_with_legacy(dir: PathBuf, legacy_dir: Option<PathBuf>) -> Self {
         let _ = fs::create_dir_all(&dir);
         let config_path = dir.join("projects.json");
-        let projects = Self::load(&config_path).unwrap_or_default();
-        AppState {
+        let legacy_path = legacy_dir.map(|dir| dir.join("projects.json"));
+        let (projects, needs_migration) = match Self::load(&config_path) {
+            Some(projects) => (projects, false),
+            None if !config_path.exists() => match legacy_path.as_deref().and_then(Self::load) {
+                Some(projects) => (projects, true),
+                None => (Vec::new(), false),
+            },
+            None => (Vec::new(), false),
+        };
+        let state = AppState {
             config_path,
             projects: Mutex::new(projects),
+        };
+        if needs_migration {
+            let projects = state.projects.lock().unwrap();
+            if let Err(error) = state.save(&projects) {
+                eprintln!("[fs-explorer] 旧项目列表迁移失败: {error}");
+            }
         }
+        state
     }
 
     fn load(path: &Path) -> Option<Vec<Project>> {
@@ -53,7 +74,7 @@ impl AppState {
                 Some(projects)
             }
             Err(e) => {
-                eprintln!("[git-gui] projects.json 解析失败({e})，已忽略");
+                eprintln!("[fs-explorer] projects.json 解析失败({e})，已忽略");
                 None
             }
         }
@@ -147,6 +168,30 @@ mod tests {
         let projects = state.projects.lock().unwrap();
         let names = projects.iter().map(|p| p.name.as_str()).collect::<Vec<_>>();
         assert_eq!(names, ["newest", "first", "second", "oldest"]);
+    }
+
+    #[test]
+    fn migrates_legacy_projects_when_current_config_is_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let current = dir.path().join("current");
+        let legacy = dir.path().join("legacy");
+        fs::create_dir_all(&legacy).unwrap();
+        fs::write(
+            legacy.join("projects.json"),
+            r#"{
+                "version": 1,
+                "projects": [
+                    { "path": "/tmp/legacy-repo", "name": "legacy-repo", "addedAt": "2026-01-01T00:00:00Z" }
+                ]
+            }"#,
+        )
+        .unwrap();
+
+        let state = AppState::init_with_legacy(current.clone(), Some(legacy));
+        let projects = state.projects.lock().unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].name, "legacy-repo");
+        assert!(current.join("projects.json").is_file());
     }
 
     #[test]

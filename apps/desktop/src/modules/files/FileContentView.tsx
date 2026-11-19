@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react"
-import type { ProjectFileContent } from "@git-gui/core"
+import type { ProjectFileContent } from "@fs-explorer/core"
 import { FileWarning } from "lucide-react"
 import { CenterHint } from "@/components/CenterHint"
 

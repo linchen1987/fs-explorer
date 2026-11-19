@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Check, ChevronsUpDown, GitBranch, Network } from "lucide-react"
-import type { Branch } from "@git-gui/core"
+import type { Branch } from "@fs-explorer/core"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"

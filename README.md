@@ -1,6 +1,6 @@
-# Git GUI
+# FS Explorer
 
-一个**轻量、可定制、渐进式演进**的 Git 桌面客户端。基于 Tauri 2 + React 19 + shadcn/ui，直接调用系统 `git`，按需慢慢长出你日常需要的功能。
+一个集**文件浏览、Git 浏览与轻量操作**于一身的桌面应用。基于 Tauri 2 + React 19 + shadcn/ui，直接调用系统 `git`，按需慢慢长出你日常需要的功能。
 
 ## 功能
 
@@ -45,7 +45,7 @@
 ## 目录结构
 
 ```
-git-gui/
+fs-explorer/
 ├── apps/
 │   └── desktop/                 # Tauri 桌面应用
 │       ├── src/                 # 前端
@@ -64,7 +64,7 @@ git-gui/
 │               ├── files.rs     # 受限的项目文件读取与文本保存
 │               └── git/         # git 输出解析（status/refs/diff/history，含单元测试）
 └── packages/
-    └── core/                    # @git-gui/core：领域类型 + Diff/提交图/文件树处理（vitest 测试）
+    └── core/                    # @fs-explorer/core：领域类型 + Diff/提交图/文件树处理（vitest 测试）
 ```
 
 ## 开发
@@ -74,19 +74,19 @@ git-gui/
 ```bash
 pnpm install          # 安装依赖
 pnpm dev:app          # 启动桌面应用（tauri dev，热更新）
-pnpm --filter @git-gui/desktop dev   # 仅启动前端 dev server
+pnpm --filter @fs-explorer/desktop dev   # 仅启动前端 dev server
 
 pnpm test             # packages/core 的 vitest 测试
 pnpm check            # 全部 TypeScript 类型检查
 pnpm check:rs         # Rust 单元测试 + cargo check
 
 pnpm build:app        # 打包桌面应用（dmg/app）
-pnpm install:local    # macOS：构建并安装到 /Applications/Git GUI.app（替换已有版本）
+pnpm install:local    # macOS：构建并安装到 /Applications/FS Explorer.app（替换已有版本）
 ```
 
-> macOS 开发模式的 Dock 图标在 Rust 编译时内嵌。修改图标后需要完全退出并重新执行 `pnpm dev:app`，仅刷新前端不会更新 Dock。
+> macOS 开发模式的 Dock 图标在 Rust 编译时内嵌。修改图标后需要完全退出并重新执行 `pnpm dev:app`，仅刷新前端不会更新 Dock。原始 Git 图标保留在 `apps/desktop/src/assets/legacy-git.svg`。
 
-项目列表保存在系统应用配置目录（macOS：`~/Library/Application Support/com.gitgui.desktop/projects.json`）。
+项目列表保存在系统应用配置目录（macOS：`~/Library/Application Support/com.fsexplorer.desktop/projects.json`）。首次启动时会导入 `com.gitgui.desktop` 中的旧项目列表；也可通过 `FS_EXPLORER_CONFIG_DIR` 指定配置目录。
 
 ## 架构说明
 

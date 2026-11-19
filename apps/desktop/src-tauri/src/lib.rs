@@ -14,12 +14,24 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            // 支持通过 GIT_GUI_CONFIG_DIR 覆盖配置目录（调试 / 便携化）
-            let config_dir = match std::env::var("GIT_GUI_CONFIG_DIR") {
-                Ok(dir) if !dir.is_empty() => std::path::PathBuf::from(dir),
-                _ => app.path().app_config_dir()?,
+            // 支持通过 FS_EXPLORER_CONFIG_DIR 覆盖配置目录（保留旧变量兼容便携化配置）。
+            let config_override = std::env::var("FS_EXPLORER_CONFIG_DIR")
+                .ok()
+                .filter(|dir| !dir.is_empty())
+                .or_else(|| {
+                    std::env::var("GIT_GUI_CONFIG_DIR")
+                        .ok()
+                        .filter(|dir| !dir.is_empty())
+                });
+            let (config_dir, legacy_config_dir) = match config_override {
+                Some(dir) => (std::path::PathBuf::from(dir), None),
+                None => {
+                    let dir = app.path().app_config_dir()?;
+                    let legacy = dir.parent().map(|parent| parent.join("com.gitgui.desktop"));
+                    (dir, legacy)
+                }
             };
-            app.manage(AppState::init(config_dir));
+            app.manage(AppState::init_with_legacy(config_dir, legacy_config_dir));
             app.manage(TerminalState::new());
             Ok(())
         })

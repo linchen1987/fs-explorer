@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from "react"
-import type { Project, WorktreeStatus } from "@git-gui/core"
+import type { Project, WorktreeStatus } from "@fs-explorer/core"
 import { create } from "zustand"
 import { errText } from "@/lib/async"
 import { ipc } from "@/lib/ipc"

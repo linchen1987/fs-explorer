@@ -11,7 +11,7 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react"
-import type { Project } from "@git-gui/core"
+import type { Project } from "@fs-explorer/core"
 import logoUrl from "@/assets/logo.svg"
 import { errText } from "@/lib/async"
 import { ipc } from "@/lib/ipc"
@@ -189,7 +189,7 @@ export function Sidebar() {
     <aside className="flex h-full min-h-0 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-12 shrink-0 items-center gap-2 px-3">
         <img src={logoUrl} alt="" draggable={false} className="size-5 shrink-0 select-none" />
-        <span className="text-sm font-semibold tracking-tight">Git GUI</span>
+        <span className="text-sm font-semibold tracking-tight">FS Explorer</span>
         <div className="ml-auto flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -264,7 +264,7 @@ export function Sidebar() {
           <AlertDialogHeader>
             <AlertDialogTitle>移除项目「{removing?.name}」？</AlertDialogTitle>
             <AlertDialogDescription>
-              只会从 Git GUI 的项目列表中移除，不会删除磁盘上的任何文件或仓库。
+              只会从 FS Explorer 的项目列表中移除，不会删除磁盘上的任何文件或仓库。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,7 +1,7 @@
 import { lazy } from "react"
 import type { LucideIcon } from "lucide-react"
 import { FileDiff, FolderTree, GitCompare, History } from "lucide-react"
-import type { Project } from "@git-gui/core"
+import type { Project } from "@fs-explorer/core"
 import { WorktreeModule } from "./worktree/WorktreeModule"
 import { HistoryModule } from "./history/HistoryModule"
 import { BranchCompareModule } from "./branch-compare/BranchCompareModule"

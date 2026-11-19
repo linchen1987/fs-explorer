@@ -13,8 +13,8 @@ import {
   Minus,
   Plus,
 } from "lucide-react"
-import { buildStatusTree } from "@git-gui/core"
-import type { StatusEntry, StatusTreeNode } from "@git-gui/core"
+import { buildStatusTree } from "@fs-explorer/core"
+import type { StatusEntry, StatusTreeNode } from "@fs-explorer/core"
 import { errText, useAsync } from "@/lib/async"
 import { useRefreshListener } from "@/lib/events"
 import { ipc } from "@/lib/ipc"

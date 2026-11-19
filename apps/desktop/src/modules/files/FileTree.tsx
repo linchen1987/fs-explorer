@@ -12,7 +12,7 @@ import {
   Search,
   X,
 } from "lucide-react"
-import type { FileSearchResult, FileTreeNode } from "@git-gui/core"
+import type { FileSearchResult, FileTreeNode } from "@fs-explorer/core"
 import { useAsync } from "@/lib/async"
 import { ipc } from "@/lib/ipc"
 import { cn } from "@/lib/utils"

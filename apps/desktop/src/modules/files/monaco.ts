@@ -18,13 +18,13 @@ self.MonacoEnvironment = {
 }
 
 // IME 组合输入层依赖实色背景遮住正文，透明背景会导致中英文输入重影。
-monaco.editor.defineTheme("git-gui-light", {
+monaco.editor.defineTheme("fs-explorer-light", {
   base: "vs",
   inherit: true,
   rules: [],
   colors: { "editor.background": "#FFFFFF" },
 })
-monaco.editor.defineTheme("git-gui-dark", {
+monaco.editor.defineTheme("fs-explorer-dark", {
   base: "vs-dark",
   inherit: true,
   rules: [],
@@ -32,7 +32,7 @@ monaco.editor.defineTheme("git-gui-dark", {
 })
 
 export function monacoTheme(dark: boolean) {
-  return dark ? "git-gui-dark" : "git-gui-light"
+  return dark ? "fs-explorer-dark" : "fs-explorer-light"
 }
 
 /** 使用 Monaco 自带的语言元数据识别扩展名及 Dockerfile 等特殊文件名。 */

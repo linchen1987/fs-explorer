@@ -1,18 +1,18 @@
 {
-  "name": "git-gui-monorepo",
+  "name": "fs-explorer",
   "private": true,
   "version": "0.1.0",
-  "description": "轻量、可定制的 Git 桌面客户端（Tauri + React）",
+  "description": "集文件浏览、Git 浏览与轻量操作于一体的桌面应用（Tauri + React）",
   "packageManager": "pnpm@12.4.2",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --filter @git-gui/desktop dev",
-    "dev:app": "pnpm --filter @git-gui/desktop tauri dev",
+    "dev": "pnpm --filter @fs-explorer/desktop dev",
+    "dev:app": "pnpm --filter @fs-explorer/desktop tauri dev",
     "build": "pnpm -r build",
-    "build:app": "pnpm --filter @git-gui/desktop tauri build",
-    "install:local": "pnpm --filter @git-gui/desktop tauri:build:app && rm -rf \"/Applications/Git GUI.app\" && cp -R \"apps/desktop/src-tauri/target/release/bundle/macos/Git GUI.app\" /Applications/",
+    "build:app": "pnpm --filter @fs-explorer/desktop tauri build",
+    "install:local": "pnpm --filter @fs-explorer/desktop tauri:build:app && rm -rf \"/Applications/FS Explorer.app\" && cp -R \"apps/desktop/src-tauri/target/release/bundle/macos/FS Explorer.app\" /Applications/",
     "check": "pnpm -r check",
     "test": "pnpm -r test",
     "check:rs": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml && cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml"

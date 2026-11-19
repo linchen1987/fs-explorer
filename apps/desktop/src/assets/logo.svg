@@ -1,16 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <title>FS Explorer</title>
+  <desc>A folder combined with a Git branch, representing lightweight file and repository exploration.</desc>
   <defs>
     <linearGradient id="background" x1="72" y1="48" x2="440" y2="464" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1E1B4B" />
+      <stop stop-color="#172554" />
       <stop offset="0.55" stop-color="#3730A3" />
       <stop offset="1" stop-color="#4F46E5" />
     </linearGradient>
   </defs>
   <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#background)" />
   <rect x="17" y="17" width="478" height="478" rx="115" stroke="white" stroke-opacity="0.14" stroke-width="2" />
-  <path d="M168 368V144" stroke="#F8FAFC" stroke-width="32" stroke-linecap="round" />
-  <path d="M168 286C168 230 212 196 270 196H344" stroke="#F8FAFC" stroke-width="32" stroke-linecap="round" />
-  <circle cx="168" cy="144" r="42" fill="#F8FAFC" />
-  <circle cx="168" cy="368" r="42" fill="#F8FAFC" />
-  <circle cx="344" cy="196" r="46" fill="#6EE7B7" />
+  <path
+    d="M108 172C108 149.9 125.9 132 148 132H207C218 132 228.4 136.4 236.2 144.2L260 168H364C386.1 168 404 185.9 404 208V348C404 370.1 386.1 388 364 388H148C125.9 388 108 370.1 108 348V172Z"
+    fill="#F8FAFC"
+  />
+  <path d="M190 324V216" stroke="#4338CA" stroke-width="28" stroke-linecap="round" />
+  <path d="M190 278C190 239 218 218 259 218H324" stroke="#4338CA" stroke-width="28" stroke-linecap="round" />
+  <circle cx="190" cy="216" r="29" fill="#4338CA" />
+  <circle cx="190" cy="324" r="29" fill="#4338CA" />
+  <circle cx="324" cy="218" r="35" fill="#0D9488" />
 </svg>

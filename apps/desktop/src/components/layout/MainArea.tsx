@@ -52,7 +52,7 @@ function Welcome() {
     <CenterHint
       icon={FolderGit2}
       title={
-        projects.length === 0 ? "开始使用 Git GUI" : "从左侧选择一个项目"
+        projects.length === 0 ? "开始使用 FS Explorer" : "从左侧选择一个项目"
       }
       desc={
         projects.length === 0
