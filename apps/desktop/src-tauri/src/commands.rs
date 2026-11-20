@@ -24,32 +24,43 @@ pub async fn list_projects(state: State<'_, AppState>) -> Result<Vec<Project>, S
     Ok(state.projects.lock().unwrap().clone())
 }
 
-/// 添加项目：目录必须是 git 仓库（自动规范化到仓库根目录）。
-#[tauri::command]
-pub async fn add_project(state: State<'_, AppState>, path: String) -> Result<Project, String> {
-    if !std::path::Path::new(&path).is_dir() {
+/// 解析项目目录：Git 目录规范化到仓库根目录，普通目录保留为文件项目。
+fn resolve_project_location(path: &str) -> Result<(String, bool), String> {
+    if !std::path::Path::new(path).is_dir() {
         return Err(format!("目录不存在: {path}"));
     }
-    let toplevel = crate::git::run_git(Some(&path), &["rev-parse", "--show-toplevel"])
-        .map_err(|_| format!("不是一个 git 仓库: {path}"))?
-        .trim()
-        .to_string();
-    if toplevel.is_empty() {
-        return Err(format!("不是一个 git 仓库: {path}"));
+    if let Ok(toplevel) = crate::git::run_git(Some(path), &["rev-parse", "--show-toplevel"]) {
+        let toplevel = toplevel.trim();
+        if !toplevel.is_empty() {
+            return Ok((toplevel.to_string(), true));
+        }
     }
-    let name = std::path::Path::new(&toplevel)
+
+    let path = std::fs::canonicalize(path)
+        .map_err(|e| format!("无法读取目录 {path}: {e}"))?
+        .to_string_lossy()
+        .into_owned();
+    Ok((path, false))
+}
+
+/// 添加本地目录；Git 相关功能是否可用由项目的 `isGitRepo` 属性决定。
+#[tauri::command]
+pub async fn add_project(state: State<'_, AppState>, path: String) -> Result<Project, String> {
+    let (project_path, is_git_repo) = resolve_project_location(&path)?;
+    let name = std::path::Path::new(&project_path)
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
-        .unwrap_or_else(|| toplevel.clone());
+        .unwrap_or_else(|| project_path.clone());
 
     let mut projects = state.projects.lock().unwrap();
-    if let Some(existing) = projects.iter().find(|p| p.path == toplevel) {
+    if let Some(existing) = projects.iter().find(|p| p.path == project_path) {
         return Err(format!("项目已存在: {}", existing.name));
     }
     let project = Project {
-        path: toplevel,
+        path: project_path,
         name,
         added_at: now_rfc3339(),
+        is_git_repo,
     };
     // 新项先放在最前，配合稳定排序，确保同一秒内后添加的项目也排在前面。
     projects.insert(0, project.clone());
@@ -226,4 +237,35 @@ pub fn resize_terminal(
 #[tauri::command]
 pub fn close_terminal(app: AppHandle, state: State<'_, TerminalState>, id: String) {
     crate::terminal::close(&app, state.inner(), &id);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_project_location;
+
+    #[test]
+    fn accepts_a_non_git_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let expected = dir.path().canonicalize().unwrap();
+
+        let (path, is_git_repo) = resolve_project_location(dir.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(path, expected.to_string_lossy());
+        assert!(!is_git_repo);
+    }
+
+    #[test]
+    fn normalizes_a_git_subdirectory_to_the_repository_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        crate::git::run_git(Some(root.to_str().unwrap()), &["init", "--quiet"]).unwrap();
+        let nested = root.join("nested");
+        std::fs::create_dir(&nested).unwrap();
+        let expected = root.canonicalize().unwrap();
+
+        let (path, is_git_repo) = resolve_project_location(nested.to_str().unwrap()).unwrap();
+
+        assert_eq!(path, expected.to_string_lossy());
+        assert!(is_git_repo);
+    }
 }

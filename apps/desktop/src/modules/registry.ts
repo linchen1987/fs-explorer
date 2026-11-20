@@ -20,6 +20,8 @@ export interface ModuleDef {
   title: string
   icon: LucideIcon
   component: React.ComponentType<ModuleProps>
+  /** 普通目录中的 Git 模块保留展示，但不可激活。 */
+  requiresGit: boolean
 }
 
 /**
@@ -32,23 +34,27 @@ export const MODULES: ModuleDef[] = [
     title: "工作区",
     icon: FileDiff,
     component: WorktreeModule,
+    requiresGit: true,
   },
   {
     id: "files",
     title: "文件",
     icon: FolderTree,
     component: FilesModule,
+    requiresGit: false,
   },
   {
     id: "history",
     title: "提交历史",
     icon: History,
     component: HistoryModule,
+    requiresGit: true,
   },
   {
     id: "branch-compare",
     title: "分支对比",
     icon: GitCompare,
     component: BranchCompareModule,
+    requiresGit: true,
   },
 ]

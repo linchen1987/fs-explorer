@@ -5,15 +5,22 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+fn default_is_git_repo() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Project {
-    /// 仓库根目录绝对路径（同时作为唯一 id）
+    /// 项目目录绝对路径（同时作为唯一 id）；Git 项目会规范化到仓库根目录
     pub path: String,
     /// 展示名（目录名）
     pub name: String,
     /// 添加时间（RFC3339 UTC）
     pub added_at: String,
+    /// 是否为 Git 仓库；旧版本配置中的项目都经过 Git 校验，因此缺省为 true
+    #[serde(default = "default_is_git_repo")]
+    pub is_git_repo: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -137,6 +144,7 @@ mod tests {
                 path: "/tmp/some-repo".into(),
                 name: "some-repo".into(),
                 added_at: "2026-01-01T00:00:00Z".into(),
+                is_git_repo: true,
             });
             state.save(&projects).unwrap();
         }
@@ -168,6 +176,7 @@ mod tests {
         let projects = state.projects.lock().unwrap();
         let names = projects.iter().map(|p| p.name.as_str()).collect::<Vec<_>>();
         assert_eq!(names, ["newest", "first", "second", "oldest"]);
+        assert!(projects.iter().all(|p| p.is_git_repo));
     }
 
     #[test]

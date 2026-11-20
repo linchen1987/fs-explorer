@@ -98,6 +98,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
   },
 
   refreshStatus: (path) => {
+    const project = get().projects.find((p) => p.path === path)
+    if (project && !project.isGitRepo) return Promise.resolve()
+
     const existing = statusRequests.get(path)
     if (existing) return existing
 
@@ -129,11 +132,14 @@ export function useSelectedProject(): Project | null {
 export function useProjectStatus(path: string) {
   const result = useProjectsStore((s) => s.statuses[path])
   const loading = useProjectsStore((s) => s.statusLoading[path] ?? false)
+  const isGitRepo = useProjectsStore((s) =>
+    s.projects.find((p) => p.path === path)?.isGitRepo ?? true,
+  )
   const refresh = useProjectsStore((s) => s.refreshStatus)
 
   useEffect(() => {
-    if (!result && !loading) void refresh(path)
-  }, [path, result, loading, refresh])
+    if (isGitRepo && !result && !loading) void refresh(path)
+  }, [path, result, loading, isGitRepo, refresh])
 
   const reload = useCallback(() => {
     void refresh(path)
@@ -142,7 +148,7 @@ export function useProjectStatus(path: string) {
   return {
     data: result && "ok" in result ? result.ok : null,
     error: result && "err" in result ? result.err : null,
-    loading: loading || !result,
+    loading: isGitRepo && (loading || !result),
     reload,
   }
 }

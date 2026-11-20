@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
 import {
   CircleAlert,
+  Folder,
   FolderGit2,
   GitBranch,
   MoreHorizontal,
@@ -86,6 +87,7 @@ function ProjectListItem({
   const selected = useProjectsStore((s) => s.selectedPath === project.path)
   const select = useProjectsStore((s) => s.select)
   const status = useProjectsStore((s) => s.statuses[project.path])
+  const ProjectIcon = project.isGitRepo ? FolderGit2 : Folder
 
   return (
     <div
@@ -96,7 +98,7 @@ function ProjectListItem({
       )}
     >
       <div className="flex items-center gap-2">
-        <FolderGit2
+        <ProjectIcon
           className={cn(
             "size-4 shrink-0",
             selected ? "text-foreground" : "text-muted-foreground",
@@ -125,7 +127,9 @@ function ProjectListItem({
         </DropdownMenu>
       </div>
       <div className="flex items-center gap-1.5 pl-6 text-xs text-muted-foreground">
-        {status ? (
+        {!project.isGitRepo ? (
+          <span className="text-muted-foreground/60">非 Git 目录</span>
+        ) : status ? (
           <StatusLine status={status} />
         ) : (
           <span className="text-muted-foreground/60">读取中…</span>
@@ -152,7 +156,7 @@ export function Sidebar() {
       const dir = await open({
         directory: true,
         multiple: false,
-        title: "选择一个 git 仓库目录",
+        title: "选择一个本地目录",
       })
       if (typeof dir === "string" && dir.length > 0) {
         const p = await add(dir)
@@ -207,7 +211,7 @@ export function Sidebar() {
                 <span className="sr-only">添加项目</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>添加项目（本地 git 仓库目录）</TooltipContent>
+            <TooltipContent>添加项目（本地目录）</TooltipContent>
           </Tooltip>
         </div>
       </div>
@@ -224,7 +228,7 @@ export function Sidebar() {
               <br />
               点击右上角 <Plus className="inline size-3" /> 添加一个
               <br />
-              本地 git 仓库目录
+              本地目录（支持普通目录）
             </div>
           ) : (
             projects.map((p) => (

@@ -6,14 +6,16 @@
  * 修改任意一侧时请保持两边同步。
  */
 
-/** 一个 Project = 一个本地 git 仓库（仓库根目录） */
+/** 一个 Project = 一个本地目录；Git 项目使用仓库根目录 */
 export interface Project {
-  /** 仓库根目录的绝对路径（同时作为唯一 id） */
+  /** 项目目录的绝对路径（同时作为唯一 id） */
   path: string
   /** 展示名（目录名） */
   name: string
   /** 添加时间（RFC3339） */
   addedAt: string
+  /** 是否为 Git 仓库；普通目录仅启用文件等非 Git 模块 */
+  isGitRepo: boolean
 }
 
 /** 工作区状态条目（对应 `git status --porcelain=v2` 的一条变更） */

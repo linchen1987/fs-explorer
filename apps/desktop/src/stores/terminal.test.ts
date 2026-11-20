@@ -6,12 +6,14 @@ const firstProject: Project = {
   path: "/repos/first",
   name: "first",
   addedAt: "2026-01-01T00:00:00Z",
+  isGitRepo: true,
 }
 
 const secondProject: Project = {
   path: "/repos/second",
   name: "second",
   addedAt: "2026-01-02T00:00:00Z",
+  isGitRepo: true,
 }
 
 describe("global terminal", () => {

@@ -42,7 +42,7 @@ describe("BranchCompareModule refresh", () => {
   it("全局刷新同时重新请求分支、对比结果和当前文件 Diff", () => {
     renderToString(
       <BranchCompareModule
-        project={{ path: "/repo", name: "repo", addedAt: "2026-01-01" }}
+        project={{ path: "/repo", name: "repo", addedAt: "2026-01-01", isGitRepo: true }}
         active
       />,
     )
