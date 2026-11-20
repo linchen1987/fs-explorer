@@ -68,9 +68,10 @@ export function FileViewer({
   const canPreview = file?.kind === "text" && (isMarkdown(file.path) || isSvg(file.path))
 
   async function copyPath() {
+    const absolutePath = `${repo.replace(/\/+$/, "")}/${currentPath}`
     try {
-      await navigator.clipboard.writeText(currentPath)
-      toast.success("文件路径已复制", { description: currentPath })
+      await navigator.clipboard.writeText(absolutePath)
+      toast.success("文件路径已复制", { description: absolutePath })
     } catch (error) {
       toast.error("复制文件路径失败", { description: errText(error) })
     }

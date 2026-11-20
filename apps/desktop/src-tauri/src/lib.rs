@@ -1,3 +1,4 @@
+mod clipboard;
 mod commands;
 mod files;
 mod git;
@@ -45,6 +46,7 @@ pub fn run() {
             commands::search_project_files,
             commands::read_project_file,
             commands::save_project_file,
+            commands::copy_files_to_clipboard,
             commands::get_worktree_status,
             commands::list_branches,
             commands::compare_refs,

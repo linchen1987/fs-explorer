@@ -117,6 +117,20 @@ pub async fn save_project_file(repo: String, path: String, content: String) -> R
     crate::files::save_file(&repo, &path, &content)
 }
 
+/// 将仓库内若干文件以「文件本体」形式写入系统剪贴板。
+#[tauri::command]
+pub async fn copy_files_to_clipboard(repo: String, paths: Vec<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let paths: Vec<std::path::PathBuf> = paths
+            .iter()
+            .map(|path| crate::files::resolve_file(&repo, path))
+            .collect::<Result<_, _>>()?;
+        crate::clipboard::copy_files_to_clipboard(&paths)
+    })
+    .await
+    .map_err(|e| format!("复制文件任务失败: {e}"))?
+}
+
 #[tauri::command]
 pub async fn get_worktree_status(
     repo: String,

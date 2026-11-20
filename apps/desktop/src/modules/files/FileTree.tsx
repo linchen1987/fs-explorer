@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 import {
   ChevronRight,
+  Copy,
   File,
   FileCode2,
   FileText,
@@ -8,16 +10,24 @@ import {
   Folder,
   FolderOpen,
   Image,
+  Link2,
   RefreshCw,
   Search,
   X,
 } from "lucide-react"
 import type { FileSearchResult, FileTreeNode } from "@fs-explorer/core"
-import { useAsync } from "@/lib/async"
+import { errText, useAsync } from "@/lib/async"
 import { ipc } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { StatusBadge } from "@/components/StatusBadge"
 
 const PAGE_SIZE = 200
@@ -52,6 +62,8 @@ interface TreeViewProps {
   expanded: Set<string>
   onToggle: (path: string) => void
   onSelect: (path: string) => void
+  onCopyFile: (path: string) => void
+  onCopyPath: (path: string) => void
 }
 
 interface TreeNodeProps extends TreeViewProps {
@@ -67,45 +79,68 @@ function TreeNode({
   expanded,
   onToggle,
   onSelect,
+  onCopyFile,
+  onCopyPath,
   ...treeProps
 }: TreeNodeProps) {
   const directory = node.kind === "directory"
   const conflicted = !directory && conflictedPaths.has(node.path)
   const open = directory && expanded.has(node.path)
+  const row = (
+    <button
+      type="button"
+      className={cn(
+        "group flex h-7 w-full items-center gap-1.5 pr-2 text-left text-[13px] hover:bg-accent/60 focus-visible:relative focus-visible:z-10 focus-visible:outline-1 focus-visible:outline-ring",
+        !directory && selectedPath === node.path && "bg-accent text-accent-foreground",
+      )}
+      style={{ paddingLeft: `${8 + depth * 14}px` }}
+      title={conflicted ? `${node.path}（合并冲突）` : node.path}
+      aria-expanded={directory ? open : undefined}
+      aria-current={!directory && selectedPath === node.path ? "page" : undefined}
+      onClick={() => directory ? onToggle(node.path) : onSelect(node.path)}
+    >
+      {directory ? (
+        <>
+          <ChevronRight
+            className={cn(
+              "size-3.5 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-90",
+            )}
+          />
+          {open ? (
+            <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          ) : (
+            <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+          )}
+        </>
+      ) : (
+        <FileTypeIcon path={node.path} />
+      )}
+      <span className="min-w-0 truncate">{node.name}</span>
+      {conflicted && <StatusBadge status="U" className="ml-auto" />}
+    </button>
+  )
   return (
     <>
-      <button
-        type="button"
-        className={cn(
-          "group flex h-7 w-full items-center gap-1.5 pr-2 text-left text-[13px] hover:bg-accent/60 focus-visible:relative focus-visible:z-10 focus-visible:outline-1 focus-visible:outline-ring",
-          !directory && selectedPath === node.path && "bg-accent text-accent-foreground",
-        )}
-        style={{ paddingLeft: `${8 + depth * 14}px` }}
-        title={conflicted ? `${node.path}（合并冲突）` : node.path}
-        aria-expanded={directory ? open : undefined}
-        aria-current={!directory && selectedPath === node.path ? "page" : undefined}
-        onClick={() => directory ? onToggle(node.path) : onSelect(node.path)}
-      >
-        {directory ? (
-          <>
-            <ChevronRight
-              className={cn(
-                "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                open && "rotate-90",
-              )}
-            />
-            {open ? (
-              <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <Folder className="size-3.5 shrink-0 text-muted-foreground" />
-            )}
-          </>
-        ) : (
-          <FileTypeIcon path={node.path} />
-        )}
-        <span className="min-w-0 truncate">{node.name}</span>
-        {conflicted && <StatusBadge status="U" className="ml-auto" />}
-      </button>
+      {directory ? row : (
+        <ContextMenu>
+          <ContextMenuTrigger asChild onContextMenu={() => onSelect(node.path)}>
+            {row}
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem onSelect={() => onCopyFile(node.path)}>
+              <Copy />
+              复制文件
+              <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => onCopyPath(node.path)}>
+              <Link2 />
+              复制文件路径
+              <ContextMenuShortcut>⌥⌘C</ContextMenuShortcut>
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      )}
       {directory && open && (
         <DirectoryNodes
           parentPath={node.path}
@@ -115,6 +150,8 @@ function TreeNode({
           expanded={expanded}
           onToggle={onToggle}
           onSelect={onSelect}
+          onCopyFile={onCopyFile}
+          onCopyPath={onCopyPath}
           {...treeProps}
         />
       )}
@@ -253,6 +290,66 @@ export function FileTree({
     })
   }
 
+  // keydown 与原生 copy 事件可能都触发一次复制，300ms 内去重。
+  const lastCopyAtRef = useRef(0)
+  const copyFile = useCallback(async (path: string) => {
+    if (Date.now() - lastCopyAtRef.current < 300) return
+    lastCopyAtRef.current = Date.now()
+    try {
+      await ipc.copyFilesToClipboard(repo, [path])
+      toast.success("已复制文件，可在 Finder 等处粘贴", { description: path })
+    } catch (error) {
+      toast.error("复制文件失败", { description: errText(error) })
+    }
+  }, [repo])
+
+  const copyPath = useCallback(async (path: string) => {
+    const absolutePath = `${repo.replace(/\/+$/, "")}/${path}`
+    try {
+      await navigator.clipboard.writeText(absolutePath)
+      toast.success("文件路径已复制", { description: absolutePath })
+    } catch (error) {
+      toast.error("复制文件路径失败", { description: errText(error) })
+    }
+  }, [repo])
+
+  // macOS 上 ⌘C 被原生菜单（Edit → Copy）拦截，keydown 收不到；
+  // WebKit 会转而派发原生 copy 事件。WKWebView 点击按钮不一定移动焦点，
+  // 因此不能依赖 activeElement 在树内，只排除可编辑目标（搜索框、编辑器等）。
+  useEffect(() => {
+    function onCopy(event: ClipboardEvent) {
+      if (!selectedPath) return
+      const target = event.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+      event.preventDefault()
+      void copyFile(selectedPath)
+    }
+    document.addEventListener("copy", onCopy)
+    return () => document.removeEventListener("copy", onCopy)
+  }, [selectedPath, copyFile])
+
+  function handleTreeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "c") return
+    if (!selectedPath) return
+    const target = event.target as HTMLElement | null
+    if (!target || target === event.currentTarget) return
+    if (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      return
+    }
+    // 非 macOS 平台没有原生菜单拦截，keydown 里直接处理；
+    // macOS 上若 copy 事件也触发，由 copyFile 内部节流去重。
+    event.preventDefault()
+    if (event.altKey) void copyPath(selectedPath)
+    else void copyFile(selectedPath)
+  }
+
   const treeProps: TreeViewProps = {
     repo,
     revision,
@@ -261,6 +358,8 @@ export function FileTree({
     expanded,
     onToggle: toggle,
     onSelect,
+    onCopyFile: (path) => void copyFile(path),
+    onCopyPath: (path) => void copyPath(path),
   }
 
   return (
@@ -300,7 +399,11 @@ export function FileTree({
           </Button>
         )}
       </div>
-      <div className="min-h-0 flex-1 overflow-auto py-1" aria-busy={searchWaiting}>
+      <div
+        className="min-h-0 flex-1 overflow-auto py-1"
+        aria-busy={searchWaiting}
+        onKeyDown={handleTreeKeyDown}
+      >
         {searching ? (
           searchWaiting ? (
             <p className="px-3 py-6 text-center text-xs text-muted-foreground">正在搜索文件…</p>

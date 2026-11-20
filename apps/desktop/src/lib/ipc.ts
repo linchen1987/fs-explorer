@@ -53,6 +53,8 @@ export const ipc = {
     invoke<ProjectFileContent>("read_project_file", { repo, path }),
   saveProjectFile: (repo: string, path: string, content: string) =>
     invoke<void>("save_project_file", { repo, path, content }),
+  copyFilesToClipboard: (repo: string, paths: string[]) =>
+    invoke<void>("copy_files_to_clipboard", { repo, paths }),
 
   getWorktreeStatus: (repo: string) =>
     invoke<WorktreeStatus>("get_worktree_status", { repo }),

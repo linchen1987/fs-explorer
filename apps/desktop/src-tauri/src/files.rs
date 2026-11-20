@@ -283,7 +283,7 @@ fn resolve_directory(repo: &str, parent: &str) -> Result<PathBuf, String> {
 }
 
 /// 校验相对路径，并解析符号链接后确认目标仍为仓库内普通文件。
-fn resolve_file(repo: &str, path: &str) -> Result<PathBuf, String> {
+pub(crate) fn resolve_file(repo: &str, path: &str) -> Result<PathBuf, String> {
     if path.is_empty() {
         return Err("文件路径不能为空".to_string());
     }
