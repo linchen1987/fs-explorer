@@ -227,7 +227,7 @@ export function FilesModule({ project, active }: ModuleProps) {
   return (
     <>
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize="26%" minSize="18%" maxSize="45%">
+        <ResizablePanel defaultSize="26%" minSize="18%" maxSize="45%" className="bg-panel">
           <FileTree
             repo={repo}
             revision={filesRevision}

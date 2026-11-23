@@ -1,8 +1,8 @@
 @layer components {
   .markdown-preview {
     color: var(--foreground);
-    font-size: 14px;
-    line-height: 1.75;
+    font-size: 15px;
+    line-height: 1.8;
   }
   .markdown-preview > :first-child { margin-top: 0; }
   .markdown-preview > :last-child { margin-bottom: 0; }
@@ -63,7 +63,7 @@
   .markdown-preview pre code {
     background: transparent;
     padding: 0;
-    font-size: 12px;
+    font-size: 13px;
   }
   .markdown-preview .markdown-mermaid {
     display: flex;
@@ -85,7 +85,7 @@
   .markdown-preview .markdown-mermaid-message,
   .markdown-preview .markdown-mermaid-error {
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: 13px;
   }
   .markdown-preview .markdown-mermaid-error {
     flex-direction: column;
@@ -121,7 +121,7 @@
     width: 1%;
     min-width: 8rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12px;
+    font-size: 13px;
     white-space: nowrap;
   }
   .markdown-preview .markdown-frontmatter td {
@@ -129,7 +129,7 @@
     white-space: pre-wrap;
   }
   .markdown-preview .markdown-frontmatter-raw {
-    font-size: 12px;
+    font-size: 13px;
   }
   .markdown-preview img { max-width: 100%; height: auto; }
   .markdown-preview hr {

@@ -5,17 +5,17 @@ import { layoutCommitGraph, timeAgo } from "@fs-explorer/core"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
-const ROW_HEIGHT = 56
-const LANE_WIDTH = 15
+const ROW_HEIGHT = 60
+const LANE_WIDTH = 16
 const LANE_COLORS = [
-  "#8b5cf6",
-  "#0ea5e9",
-  "#22c55e",
-  "#f59e0b",
-  "#ec4899",
-  "#14b8a6",
-  "#f97316",
-  "#6366f1",
+  "var(--graph-lane-1)",
+  "var(--graph-lane-2)",
+  "var(--graph-lane-3)",
+  "var(--graph-lane-4)",
+  "var(--graph-lane-5)",
+  "var(--graph-lane-6)",
+  "var(--graph-lane-7)",
+  "var(--graph-lane-8)",
 ]
 
 function laneX(lane: number) {
@@ -77,16 +77,16 @@ function RefLabels({ refs }: { refs: string[] }) {
         <span
           key={ref}
           className={cn(
-            "max-w-28 truncate rounded border border-violet-500/25 bg-violet-500/10 px-1 py-px text-[10px] leading-3 text-violet-700 dark:text-violet-300",
+            "max-w-32 truncate rounded-md border border-commit/20 bg-commit/8 px-1.5 py-0.5 text-xs leading-4 text-commit",
             ref.startsWith("tag:") &&
-              "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+              "border-warning/20 bg-warning/8 text-warning",
           )}
         >
           {ref}
         </span>
       ))}
       {refs.length > visible.length && (
-        <span className="text-[10px] text-muted-foreground">+{refs.length - 2}</span>
+        <span className="text-xs text-muted-foreground">+{refs.length - 2}</span>
       )}
     </span>
   )
@@ -129,21 +129,21 @@ export function HistoryList({
               onClick={() => onSelect(commit.sha)}
               aria-pressed={active}
               className={cn(
-                "flex h-14 w-full min-w-0 cursor-pointer items-stretch border-b text-left hover:bg-accent/50",
-                active && "bg-accent text-accent-foreground",
+                "flex h-15 w-full min-w-0 cursor-pointer items-stretch border-b border-border/70 text-left transition-colors hover:bg-accent/60",
+                active && "bg-accent text-accent-foreground shadow-[inset_2px_0_0_var(--primary)]",
               )}
               title={commit.subject}
             >
               <GraphCell row={row} width={graphWidth} />
-              <span className="min-w-0 flex-1 px-2 py-1.5">
-                <span className="flex h-6 min-w-0 items-center gap-1.5">
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+              <span className="min-w-0 flex-1 px-3 py-2">
+                <span className="flex h-6 min-w-0 items-center gap-2">
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {commit.subject}
                   </span>
                   <RefLabels refs={commit.refs} />
                 </span>
-                <span className="flex h-5 min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <span className="shrink-0 font-mono text-violet-600 dark:text-violet-400">
+                <span className="flex h-5 min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="shrink-0 font-mono text-commit">
                     {commit.shortSha}
                   </span>
                   <span aria-hidden>·</span>
@@ -175,7 +175,7 @@ export function HistoryList({
             </Button>
           </div>
         ) : (
-          <div className="flex h-10 items-center justify-center text-[11px] text-muted-foreground/70">
+          <div className="flex h-11 items-center justify-center text-xs text-muted-foreground">
             已到达最早提交
           </div>
         )}

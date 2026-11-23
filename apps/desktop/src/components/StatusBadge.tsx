@@ -2,14 +2,14 @@ import { cn } from "@/lib/utils"
 
 /** 文件变更状态字母徽标（M/A/D/R/C/T/U/?） */
 const STATUS_CLASS: Record<string, string> = {
-  M: "text-amber-600 dark:text-amber-400",
-  A: "text-emerald-600 dark:text-emerald-400",
-  "?": "text-emerald-600 dark:text-emerald-400",
-  D: "text-red-600 dark:text-red-400",
-  R: "text-sky-600 dark:text-sky-400",
-  C: "text-sky-600 dark:text-sky-400",
-  T: "text-violet-600 dark:text-violet-400",
-  U: "text-red-600 dark:text-red-400",
+  M: "text-warning",
+  A: "text-success",
+  "?": "text-success",
+  D: "text-destructive",
+  R: "text-info",
+  C: "text-info",
+  T: "text-commit",
+  U: "text-destructive",
 }
 
 export const STATUS_LABEL: Record<string, string> = {
@@ -35,7 +35,7 @@ export function StatusBadge({
     <span
       title={STATUS_LABEL[s] ?? s}
       className={cn(
-        "inline-flex w-4 shrink-0 justify-center font-mono text-[11px] font-bold",
+        "inline-flex w-4 shrink-0 justify-center font-mono text-xs font-semibold",
         STATUS_CLASS[s] ?? "text-muted-foreground",
         className,
       )}
@@ -54,18 +54,15 @@ export function StatDelta({
   deletions: number | null
 }) {
   if (additions == null && deletions == null) {
-    return <span className="text-[11px] text-muted-foreground">二进制</span>
+    return <span className="text-xs text-muted-foreground">二进制</span>
   }
   return (
-    <span className="shrink-0 font-mono text-[11px] tabular-nums">
+    <span className="flex shrink-0 items-center gap-1.5 font-mono text-xs tabular-nums">
       {additions != null && additions > 0 && (
-        <span className="text-emerald-600 dark:text-emerald-400">
-          +{additions}
-        </span>
+        <span className="text-success">+{additions}</span>
       )}
-      {"\u2002"}
       {deletions != null && deletions > 0 && (
-        <span className="text-red-600 dark:text-red-400">−{deletions}</span>
+        <span className="text-destructive">−{deletions}</span>
       )}
     </span>
   )

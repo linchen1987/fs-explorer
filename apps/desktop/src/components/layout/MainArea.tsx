@@ -158,13 +158,13 @@ export function MainArea() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       {/* 项目头部 */}
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+      <header className="flex h-13 shrink-0 items-center gap-2.5 border-b px-4">
         {project.isGitRepo ? (
           <FolderGit2 className="size-4 shrink-0 text-muted-foreground" />
         ) : (
           <Folder className="size-4 shrink-0 text-muted-foreground" />
         )}
-        <span className="shrink-0 text-sm font-semibold">{project.name}</span>
+        <span className="shrink-0 text-[15px] font-semibold tracking-tight">{project.name}</span>
         <span
           className="min-w-0 truncate text-xs text-muted-foreground"
           title={project.path}
@@ -190,7 +190,7 @@ export function MainArea() {
               </span>
             )}
             {st.entries.length > 0 && (
-              <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+              <Badge variant="secondary" className="px-1.5 font-normal">
                 {st.entries.length} 项改动
               </Badge>
             )}
@@ -236,17 +236,17 @@ export function MainArea() {
           onValueChange={activateModule}
           className="flex min-h-0 flex-1 flex-col gap-0"
         >
-          <div className="shrink-0 border-b px-3 py-1">
-            <TabsList className="h-8 gap-1">
+          <div className="shrink-0 border-b px-4 py-1.5">
+            <TabsList className="h-9 gap-1">
               {MODULES.map((m) => (
                 <TabsTrigger
                   key={m.id}
                   value={m.id}
                   disabled={!isGitRepo && m.requiresGit}
                   title={!isGitRepo && m.requiresGit ? "当前目录不是 Git 仓库" : undefined}
-                  className="gap-1.5 px-3"
+                  className="gap-2 px-3.5"
                 >
-                  <m.icon className="size-3.5" />
+                  <m.icon className="size-4" />
                   {m.title}
                 </TabsTrigger>
               ))}

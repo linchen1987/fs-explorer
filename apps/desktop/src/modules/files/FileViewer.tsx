@@ -79,7 +79,7 @@ export function FileViewer({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <div className="flex h-12 shrink-0 items-center gap-2.5 border-b bg-card/20 px-4">
         <div className="flex shrink-0 items-center gap-0.5">
           <Button
             variant="ghost"
@@ -120,18 +120,18 @@ export function FileViewer({
           <Copy />
         </Button>
         {conflicted && (
-          <Badge variant="destructive" className="h-5 shrink-0 px-1.5 text-[10px] font-normal">
+          <Badge variant="destructive" className="shrink-0 px-1.5 font-normal">
             合并冲突
           </Badge>
         )}
         {dirty && (
-          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-orange-500" />
+          <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-warning" />
             未保存
           </span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {file && <span className="text-[11px] text-muted-foreground">{formatSize(file.size)}</span>}
+          {file && <span className="text-xs tabular-nums text-muted-foreground">{formatSize(file.size)}</span>}
           {canPreview && (
             <Tabs value={mode} onValueChange={(value) => onModeChange(value as FileViewMode)} className="gap-0">
               <TabsList className="h-7">

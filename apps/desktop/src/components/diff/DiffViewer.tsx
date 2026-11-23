@@ -49,11 +49,11 @@ function FileDiffBody({ file }: { file: FileDiff }) {
   }
 
   return (
-    <div className="min-w-full font-mono text-[12.5px] leading-[1.55]">
+    <div className="min-w-full font-mono text-[13px] leading-[1.65]">
       {file.hunks.map((hunk, hi) => (
-        <div key={hi} className="border-b border-border/60 last:border-b-0">
-          <div className="sticky top-0 z-10 bg-muted/95 px-3 py-1 text-[11px] whitespace-pre-wrap break-all text-muted-foreground backdrop-blur">
-            <span className="text-sky-600 dark:text-sky-400">
+        <div key={hi} className="border-b border-border/70 last:border-b-0">
+          <div className="sticky top-0 z-10 border-y border-border/50 bg-diff-hunk/95 px-4 py-1.5 text-xs whitespace-pre-wrap break-all text-diff-hunk-foreground backdrop-blur first:border-t-0">
+            <span className="font-medium text-info">
               @@ -{hunk.oldStart} @@ +{hunk.newStart} @@
             </span>
             {hunk.context && <span className="ml-2 opacity-70">{hunk.context}</span>}
@@ -62,23 +62,21 @@ function FileDiffBody({ file }: { file: FileDiff }) {
             <div
               key={li}
               className={cn(
-                "flex min-w-max items-start px-1",
-                line.type === "add" &&
-                  "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
-                line.type === "del" &&
-                  "bg-red-500/10 text-red-800 dark:text-red-300",
+                "flex min-w-max items-start px-1 py-px",
+                line.type === "add" && "bg-diff-add text-diff-add-foreground",
+                line.type === "del" && "bg-diff-delete text-diff-delete-foreground",
               )}
             >
-              <span className="w-11 shrink-0 select-none px-1 text-right text-muted-foreground/50">
+              <span className="w-11 shrink-0 select-none px-1 text-right text-muted-foreground/65">
                 {line.oldNumber ?? ""}
               </span>
-              <span className="w-11 shrink-0 select-none px-1 text-right text-muted-foreground/50">
+              <span className="w-11 shrink-0 select-none px-1 text-right text-muted-foreground/65">
                 {line.newNumber ?? ""}
               </span>
               <span
                 className={cn(
-                  "w-4 shrink-0 select-none text-center opacity-70",
-                  line.type === "context" && "text-muted-foreground/40",
+                  "w-4 shrink-0 select-none text-center opacity-80",
+                  line.type === "context" && "text-muted-foreground/60",
                 )}
               >
                 {line.type === "add" ? "+" : line.type === "del" ? "−" : " "}
@@ -86,7 +84,7 @@ function FileDiffBody({ file }: { file: FileDiff }) {
               <span className="whitespace-pre-wrap break-all px-1">
                 {line.content}
                 {line.noNewline && (
-                  <span className="ml-2 rounded bg-amber-500/15 px-1 py-px text-[10px] text-amber-600 dark:text-amber-400">
+                  <span className="ml-2 rounded bg-warning/10 px-1.5 py-0.5 font-sans text-xs text-warning">
                     无换行符
                   </span>
                 )}
@@ -94,7 +92,7 @@ function FileDiffBody({ file }: { file: FileDiff }) {
             </div>
           ))}
           {hunk.lines.length > MAX_LINES_PER_HUNK && (
-            <div className="px-3 py-2 text-[11px] text-muted-foreground">
+            <div className="px-4 py-2.5 text-xs text-muted-foreground">
               … 内容过长，仅显示前 {MAX_LINES_PER_HUNK} 行（共{" "}
               {hunk.lines.length} 行）
             </div>
@@ -141,7 +139,7 @@ export function DiffViewer({
         <CenterHint icon={FileDiffIcon} title={emptyHint} />
       ) : (
         <>
-          <div className="flex min-h-9 flex-wrap items-center gap-2 border-b px-3 py-1.5">
+          <div className="flex min-h-10 flex-wrap items-center gap-2.5 border-b bg-card/20 px-4 py-1">
             <span className="min-w-0 flex-1 truncate font-mono text-xs">
               {headerPath ? (
                 <>

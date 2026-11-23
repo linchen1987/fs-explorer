@@ -53,7 +53,7 @@ export function BranchCombobox({
       <GitBranch className="size-3.5 shrink-0 text-muted-foreground" />
       <span className="min-w-0 flex-1 truncate">{b.name}</span>
       {b.isHead && (
-        <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+        <Badge variant="secondary" className="px-1.5 font-normal">
           当前
         </Badge>
       )}

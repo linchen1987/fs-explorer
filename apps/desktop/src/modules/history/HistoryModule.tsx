@@ -234,7 +234,7 @@ export function HistoryModule({ project }: ModuleProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b px-3">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b bg-card/20 px-4">
         <BranchCombobox
           value={revision ?? null}
           branches={branches.data.branches}

@@ -35,11 +35,11 @@ export function ConflictFileView({ repo, path }: { repo: string; path: string })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-4">
         <GitMerge className="size-4 shrink-0 text-destructive" />
         <FilePath path={path} className="min-w-0 flex-1 truncate font-mono text-xs" />
-        <Badge variant="destructive" className="h-5 px-1.5 text-[10px] font-normal">
-          <StatusBadge status="U" className="w-3 text-[10px]" />
+        <Badge variant="destructive" className="px-1.5 font-normal">
+          <StatusBadge status="U" className="w-3" />
           合并冲突
         </Badge>
       </div>

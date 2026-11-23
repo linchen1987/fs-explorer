@@ -90,8 +90,8 @@ function TreeNode({
     <button
       type="button"
       className={cn(
-        "group flex h-7 w-full items-center gap-1.5 pr-2 text-left text-[13px] hover:bg-accent/60 focus-visible:relative focus-visible:z-10 focus-visible:outline-1 focus-visible:outline-ring",
-        !directory && selectedPath === node.path && "bg-accent text-accent-foreground",
+        "group flex h-8 w-full items-center gap-2 pr-2 text-left text-sm transition-colors hover:bg-accent/60 focus-visible:relative focus-visible:z-10 focus-visible:outline-1 focus-visible:outline-ring",
+        !directory && selectedPath === node.path && "bg-accent text-accent-foreground shadow-[inset_2px_0_0_var(--primary)]",
       )}
       style={{ paddingLeft: `${8 + depth * 14}px` }}
       title={conflicted ? `${node.path}（合并冲突）` : node.path}
@@ -364,11 +364,11 @@ export function FileTree({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-        <span className="text-xs font-medium">项目文件</span>
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+        <span className="text-sm font-medium">项目文件</span>
         <Button
           variant="ghost"
-          size="icon-xs"
+          size="icon-sm"
           className="ml-auto"
           title="刷新文件列表"
           onClick={onRefresh}
@@ -377,20 +377,20 @@ export function FileTree({
           <span className="sr-only">刷新文件列表</span>
         </Button>
       </div>
-      <div className="relative shrink-0 border-b p-2">
-        <Search className="pointer-events-none absolute top-1/2 left-4 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <div className="relative shrink-0 border-b p-2.5">
+        <Search className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="搜索文件"
-          className="h-7 pr-7 pl-7 text-xs"
+          className="h-9 pr-9 pl-9 text-sm"
           aria-label="搜索文件"
         />
         {query && (
           <Button
             variant="ghost"
             size="icon-xs"
-            className="absolute top-1/2 right-3 size-5 -translate-y-1/2"
+            className="absolute top-1/2 right-3 -translate-y-1/2"
             title="清除搜索"
             onClick={() => setQuery("")}
           >
@@ -425,7 +425,7 @@ export function FileTree({
                   {...treeProps}
                 />
               ))}
-              <p className="px-3 py-2 text-[11px] text-muted-foreground">
+              <p className="px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
                 共 {currentSearch.total} 个匹配文件
                 {currentSearch.total > currentSearch.paths.length &&
                   `，仅显示前 ${currentSearch.paths.length} 个，请继续输入以缩小范围。`}

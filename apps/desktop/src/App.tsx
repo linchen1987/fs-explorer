@@ -33,11 +33,11 @@ export default function App() {
     <TooltipProvider delayDuration={400}>
       <ResizablePanelGroup orientation="horizontal" className="h-screen">
         {/* v4：数字表示像素；百分比必须使用字符串，如 "19%"。 */}
-        <ResizablePanel defaultSize="19%" minSize="14%" maxSize="32%" className="min-w-0 border-r">
+        <ResizablePanel defaultSize="20%" minSize="15%" maxSize="32%" className="min-w-0">
           <Sidebar />
         </ResizablePanel>
-        <ResizableHandle />
-        <ResizablePanel defaultSize="81%" className="min-w-0">
+        <ResizableHandle className="bg-sidebar-border" />
+        <ResizablePanel defaultSize="80%" className="min-w-0">
           <div className="flex h-full min-h-0 flex-col">
             <div className="min-h-0 flex-1">
               <MainArea />

@@ -7,7 +7,15 @@
 
 @theme inline {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-sans: 'Geist Variable', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    --font-mono: ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+
+    /* 桌面工具仍保持紧凑，但辅助信息不再低于 13px。 */
+    --text-xs: 0.8125rem;
+    --text-xs--line-height: 1.25rem;
+    --text-sm: 0.875rem;
+    --text-sm--line-height: 1.375rem;
+
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -16,6 +24,19 @@
     --color-sidebar-primary: var(--sidebar-primary);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar: var(--sidebar);
+    --color-panel: var(--panel);
+    --color-overlay: var(--overlay);
+    --color-terminal: var(--terminal-background);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-info: var(--info);
+    --color-commit: var(--commit);
+    --color-diff-add: var(--diff-add);
+    --color-diff-add-foreground: var(--diff-add-foreground);
+    --color-diff-delete: var(--diff-delete);
+    --color-diff-delete-foreground: var(--diff-delete-foreground);
+    --color-diff-hunk: var(--diff-hunk);
+    --color-diff-hunk-foreground: var(--diff-hunk-foreground);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -39,6 +60,10 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --shadow-xs: var(--shadow-low);
+    --shadow-sm: var(--shadow-low);
+    --shadow-md: var(--shadow-medium);
+    --shadow-lg: var(--shadow-high);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -49,86 +74,182 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    color-scheme: light;
+
+    /* 带轻微冷色倾向的灰阶，避免纯白画布与生硬的高反差。 */
+    --background: #f7f8fa;
+    --foreground: #2b303b;
+    --panel: #f3f5f8;
+    --card: #fcfdfe;
+    --card-foreground: #2b303b;
+    --popover: #fcfdfe;
+    --popover-foreground: #2b303b;
+    --primary: #5962bd;
+    --primary-foreground: #f8f9ff;
+    --secondary: #eceff4;
+    --secondary-foreground: #353b48;
+    --muted: #eff1f5;
+    --muted-foreground: #667085;
+    --accent: #e8ebf2;
+    --accent-foreground: #303645;
+    --destructive: #b94a55;
+    --border: #dee2e9;
+    --input: #d8dde6;
+    --ring: #8189d6;
+    --overlay: rgb(43 48 59 / 24%);
+    --terminal-background: #f7f8fa;
+
+    --success: #347a52;
+    --warning: #946200;
+    --info: #3b6fa0;
+    --commit: #7357b5;
+    --diff-add: #e9f4ed;
+    --diff-add-foreground: #2e6b46;
+    --diff-delete: #f9e9eb;
+    --diff-delete-foreground: #9b3f4b;
+    --diff-hunk: #edf1f6;
+    --diff-hunk-foreground: #52657e;
+
+    --chart-1: #6f7acb;
+    --chart-2: #4f8a70;
+    --chart-3: #ba7892;
+    --chart-4: #aa8350;
+    --chart-5: #6486aa;
+    --graph-lane-1: #6f7acb;
+    --graph-lane-2: #4f8a70;
+    --graph-lane-3: #ba7892;
+    --graph-lane-4: #aa8350;
+    --graph-lane-5: #6486aa;
+    --graph-lane-6: #8a6db1;
+    --graph-lane-7: #4f9494;
+    --graph-lane-8: #b26f60;
+    --radius: 0.5rem;
+    --shadow-low: 0 1px 2px rgb(43 48 59 / 5%);
+    --shadow-medium: 0 6px 20px rgb(43 48 59 / 10%), 0 1px 3px rgb(43 48 59 / 6%);
+    --shadow-high: 0 16px 40px rgb(43 48 59 / 14%), 0 2px 8px rgb(43 48 59 / 8%);
+
+    --sidebar: #f0f2f5;
+    --sidebar-foreground: #2b303b;
+    --sidebar-primary: #5962bd;
+    --sidebar-primary-foreground: #f8f9ff;
+    --sidebar-accent: #e3e7ee;
+    --sidebar-accent-foreground: #293142;
+    --sidebar-border: #dde1e8;
+    --sidebar-ring: #8189d6;
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    color-scheme: dark;
+
+    /* 蓝灰炭色取代近纯黑；文字使用柔和灰白，减轻长时间观看的眩光。 */
+    --background: #17191f;
+    --foreground: #d7dbe5;
+    --panel: #1b1e25;
+    --card: #20232b;
+    --card-foreground: #d7dbe5;
+    --popover: #22252e;
+    --popover-foreground: #d7dbe5;
+    --primary: #a6adf5;
+    --primary-foreground: #242840;
+    --secondary: #292d37;
+    --secondary-foreground: #dde1ea;
+    --muted: #252932;
+    --muted-foreground: #969fac;
+    --accent: #2c303b;
+    --accent-foreground: #e1e5ed;
+    --destructive: #e29aa2;
+    --border: #303541;
+    --input: #3a404d;
+    --ring: #737dcb;
+    --overlay: rgb(0 0 0 / 45%);
+    --terminal-background: #17191f;
+
+    --success: #8cc8a5;
+    --warning: #d6b573;
+    --info: #8eb6dd;
+    --commit: #b8a0e0;
+    --diff-add: #1d3027;
+    --diff-add-foreground: #a5d5b7;
+    --diff-delete: #342328;
+    --diff-delete-foreground: #e2a4ac;
+    --diff-hunk: #222833;
+    --diff-hunk-foreground: #93a6c2;
+
+    --chart-1: #9aa5ef;
+    --chart-2: #8cc8a5;
+    --chart-3: #d39ab4;
+    --chart-4: #d6b573;
+    --chart-5: #8eb6dd;
+    --graph-lane-1: #9aa5ef;
+    --graph-lane-2: #8cc8a5;
+    --graph-lane-3: #d39ab4;
+    --graph-lane-4: #d6b573;
+    --graph-lane-5: #8eb6dd;
+    --graph-lane-6: #b8a0e0;
+    --graph-lane-7: #7fc3c3;
+    --graph-lane-8: #d79a87;
+    --shadow-low: 0 1px 2px rgb(0 0 0 / 18%);
+    --shadow-medium: 0 8px 24px rgb(0 0 0 / 26%), 0 1px 4px rgb(0 0 0 / 20%);
+    --shadow-high: 0 18px 48px rgb(0 0 0 / 36%), 0 2px 10px rgb(0 0 0 / 24%);
+
+    --sidebar: #1d2027;
+    --sidebar-foreground: #d7dbe5;
+    --sidebar-primary: #a6adf5;
+    --sidebar-primary-foreground: #242840;
+    --sidebar-accent: #303541;
+    --sidebar-accent-foreground: #e1e5ed;
+    --sidebar-border: #303541;
+    --sidebar-ring: #737dcb;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    }
-  body {
-    @apply h-full overflow-hidden bg-background text-foreground;
-    }
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 32%, transparent) transparent;
+  }
+
   html {
     @apply h-full font-sans;
-    }
+    font-size: 16px;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply h-full overflow-hidden bg-background text-foreground;
+    font-size: var(--text-sm);
+    line-height: 1.5;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 24%, transparent);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--muted-foreground) 32%, transparent);
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--muted-foreground) 48%, transparent);
+    background-clip: padding-box;
+  }
+
   #root {
     /* react-resizable-panels 使用内联 height: 100%，需要完整的父级高度链。 */
     @apply h-full;
-    }
+  }
 }
