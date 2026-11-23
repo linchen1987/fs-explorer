@@ -9,6 +9,7 @@ import { CenterHint } from "@/components/CenterHint"
 import { FileChangeList, FileListViewModeToggle } from "@/components/FileChangeList"
 import type { FileListViewMode } from "@/components/FileChangeList"
 import { DiffViewer } from "@/components/diff/DiffViewer"
+import { StatDelta } from "@/components/StatusBadge"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -58,11 +59,11 @@ export function CommitDetail({
             {commit.subject}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-6 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pl-6 text-xs text-muted-foreground">
           <button
             type="button"
             onClick={copySha}
-            className="flex items-center gap-1 rounded font-mono text-violet-600 hover:underline dark:text-violet-400"
+            className="-my-1 flex min-h-7 items-center gap-1.5 rounded-md px-1.5 font-mono text-commit transition-colors hover:bg-accent hover:underline"
             title={`复制完整 SHA：${commit.sha}`}
           >
             {commit.shortSha}
@@ -86,7 +87,7 @@ export function CommitDetail({
       <ResizablePanelGroup orientation="vertical" className="min-h-0 flex-1">
         <ResizablePanel defaultSize="30%" minSize="80px" maxSize="70%">
           <div className="flex h-full min-h-0 flex-col">
-            <div className="flex h-8 shrink-0 items-center gap-2 border-b px-3 text-[11px] text-muted-foreground">
+            <div className="flex h-10 shrink-0 items-center gap-2 border-b bg-panel px-3 text-xs text-muted-foreground">
               <span>
                 变更文件{" "}
                 <span className="font-medium text-foreground">{files.length}</span>
@@ -96,18 +97,14 @@ export function CommitDetail({
                   <FileListViewModeToggle value={viewMode} onChange={setViewMode} />
                 )}
                 {changes && (
-                  <div className="flex shrink-0 gap-2">
-                    <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                      +{changes.totalAdditions}
-                    </span>
-                    <span className="font-mono text-red-600 dark:text-red-400">
-                      −{changes.totalDeletions}
-                    </span>
-                  </div>
+                  <StatDelta
+                    additions={changes.totalAdditions}
+                    deletions={changes.totalDeletions}
+                  />
                 )}
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto py-1">
+            <div className="min-h-0 flex-1">
               {changesError ? (
                 <div className="px-3 py-2 text-xs break-all text-destructive">
                   {changesError}

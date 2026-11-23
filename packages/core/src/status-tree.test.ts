@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { FileChange, StatusEntry } from "./types"
-import { buildFileChangeTree, buildStatusTree } from "./status-tree"
+import { buildFileChangeTree, buildStatusTree, flattenVisiblePathTree } from "./status-tree"
 
 function statusEntry(path: string): StatusEntry {
   return {
@@ -57,6 +57,29 @@ describe("buildStatusTree", () => {
     expect(file.name).toBe("new-name.ts")
     expect(file.entry).toBe(entry)
     expect(buildStatusTree([])).toEqual([])
+  })
+})
+
+describe("flattenVisiblePathTree", () => {
+  it("保留树形顺序和深度，并跳过折叠目录的后代", () => {
+    const tree = buildStatusTree([
+      statusEntry("src/components/Button.tsx"),
+      statusEntry("src/main.ts"),
+      statusEntry("README.md"),
+    ])
+
+    expect(flattenVisiblePathTree(tree, new Set()).map(({ node, depth }) => [node.path, depth])).toEqual([
+      ["src", 0],
+      ["src/components", 1],
+      ["src/components/Button.tsx", 2],
+      ["src/main.ts", 1],
+      ["README.md", 0],
+    ])
+
+    expect(flattenVisiblePathTree(tree, new Set(["src"])).map(({ node }) => node.path)).toEqual([
+      "src",
+      "README.md",
+    ])
   })
 })
 

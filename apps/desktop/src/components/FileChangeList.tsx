@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react"
 import { ChevronRight, FileCode2, Folder, FolderOpen, List, ListTree } from "lucide-react"
-import { buildFileChangeTree } from "@fs-explorer/core"
+import { buildFileChangeTree, flattenVisiblePathTree } from "@fs-explorer/core"
 import type { FileChange, FileChangeTreeNode } from "@fs-explorer/core"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { FilePath, StatDelta, StatusBadge } from "@/components/StatusBadge"
+import { VirtualizedRows } from "@/components/VirtualizedRows"
 
 export type FileListViewMode = "flat" | "tree"
 
@@ -59,9 +60,9 @@ function FileChangeRow({
       type="button"
       onClick={() => onSelect(file.newPath)}
       className={cn(
-        "flex h-8 w-full cursor-pointer items-center gap-2 text-left text-[13px] hover:bg-accent/50",
+        "flex h-9 w-full cursor-pointer items-center gap-2 text-left text-sm transition-colors hover:bg-accent/60",
         onOpenFile ? "pr-9" : "pr-3",
-        active && "bg-accent text-accent-foreground",
+        active && "bg-accent text-accent-foreground shadow-[inset_2px_0_0_var(--primary)]",
       )}
       style={{ paddingLeft: `${12 + depth * 14}px` }}
       title={file.oldPath ? `${file.oldPath} → ${file.newPath}` : file.newPath}
@@ -94,77 +95,53 @@ function FileChangeRow({
   )
 }
 
-function FileChangeTreeNodes({
-  nodes,
+type DirectoryNode = Extract<FileChangeTreeNode, { kind: "directory" }>
+
+type FileChangeListRow =
+  | {
+      key: string
+      kind: "file"
+      file: FileChange
+      displayName?: string
+      depth: number
+    }
+  | { key: string; kind: "directory"; node: DirectoryNode; depth: number }
+
+function FileChangeDirectoryRow({
+  node,
   depth,
-  collapsed,
+  open,
   onToggle,
-  ...fileProps
 }: {
-  nodes: FileChangeTreeNode[]
+  node: DirectoryNode
   depth: number
-  collapsed: ReadonlySet<string>
+  open: boolean
   onToggle: (path: string) => void
-  selectedPath: string | null
-  onSelect: (path: string) => void
-  onOpenFile?: (path: string) => void
 }) {
   return (
-    <>
-      {nodes.map((node) => {
-        if (node.kind === "file") {
-          return (
-            <FileChangeRow
-              key={node.path}
-              file={node.entry}
-              active={fileProps.selectedPath === node.path}
-              onSelect={fileProps.onSelect}
-              onOpenFile={fileProps.onOpenFile}
-              displayName={node.name}
-              depth={depth}
-            />
-          )
-        }
-
-        const open = !collapsed.has(node.path)
-        return (
-          <div key={node.path}>
-            <button
-              type="button"
-              className="flex h-8 w-full items-center gap-1.5 pr-3 text-left text-[13px] hover:bg-accent/50"
-              style={{ paddingLeft: `${12 + depth * 14}px` }}
-              title={node.path}
-              aria-label={`${open ? "收起" : "展开"}目录 ${node.path}`}
-              aria-expanded={open}
-              onClick={() => onToggle(node.path)}
-            >
-              <ChevronRight
-                className={cn(
-                  "size-3.5 shrink-0 text-muted-foreground transition-transform",
-                  open && "rotate-90",
-                )}
-              />
-              {open ? (
-                <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-              ) : (
-                <Folder className="size-3.5 shrink-0 text-muted-foreground" />
-              )}
-              <span className="min-w-0 flex-1 truncate">{node.name}</span>
-              <span className="text-[11px] text-muted-foreground">{node.fileCount}</span>
-            </button>
-            {open && (
-              <FileChangeTreeNodes
-                nodes={node.children}
-                depth={depth + 1}
-                collapsed={collapsed}
-                onToggle={onToggle}
-                {...fileProps}
-              />
-            )}
-          </div>
-        )
-      })}
-    </>
+    <button
+      type="button"
+      className="flex h-9 w-full items-center gap-1.5 pr-3 text-left text-sm transition-colors hover:bg-accent/60"
+      style={{ paddingLeft: `${12 + depth * 14}px` }}
+      title={node.path}
+      aria-label={`${open ? "收起" : "展开"}目录 ${node.path}`}
+      aria-expanded={open}
+      onClick={() => onToggle(node.path)}
+    >
+      <ChevronRight
+        className={cn(
+          "size-3.5 shrink-0 text-muted-foreground transition-transform",
+          open && "rotate-90",
+        )}
+      />
+      {open ? (
+        <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+      ) : (
+        <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+      )}
+      <span className="min-w-0 flex-1 truncate">{node.name}</span>
+      <span className="text-xs text-muted-foreground">{node.fileCount}</span>
+    </button>
   )
 }
 
@@ -182,7 +159,31 @@ export function FileChangeList({
   onOpenFile?: (path: string) => void
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const tree = useMemo(() => buildFileChangeTree(files), [files])
+  const tree = useMemo(
+    () => viewMode === "tree" ? buildFileChangeTree(files) : [],
+    [files, viewMode],
+  )
+  const rows = useMemo<readonly FileChangeListRow[]>(() => {
+    if (viewMode === "flat") {
+      return files.map((file) => ({
+        key: `file:${file.status}:${file.newPath}`,
+        kind: "file",
+        file,
+        depth: 0,
+      }))
+    }
+    return flattenVisiblePathTree(tree, collapsed).map(({ node, depth }): FileChangeListRow => (
+      node.kind === "file"
+        ? {
+            key: `file:${node.path}`,
+            kind: "file",
+            file: node.entry,
+            displayName: node.name,
+            depth,
+          }
+        : { key: `directory:${node.path}`, kind: "directory", node, depth }
+    ))
+  }, [collapsed, files, tree, viewMode])
 
   function toggleDirectory(path: string) {
     setCollapsed((current) => {
@@ -193,27 +194,28 @@ export function FileChangeList({
     })
   }
 
-  if (viewMode === "flat") {
-    return files.map((file) => (
-      <FileChangeRow
-        key={`${file.status}:${file.newPath}`}
-        file={file}
-        active={selectedPath === file.newPath}
-        onSelect={onSelect}
-        onOpenFile={onOpenFile}
-      />
-    ))
-  }
-
   return (
-    <FileChangeTreeNodes
-      nodes={tree}
-      depth={0}
-      collapsed={collapsed}
-      onToggle={toggleDirectory}
-      selectedPath={selectedPath}
-      onSelect={onSelect}
-      onOpenFile={onOpenFile}
+    <VirtualizedRows
+      rows={rows}
+      getRowKey={(row) => row.key}
+      className="py-1"
+      renderRow={(row) => row.kind === "file" ? (
+        <FileChangeRow
+          file={row.file}
+          active={selectedPath === row.file.newPath}
+          onSelect={onSelect}
+          onOpenFile={onOpenFile}
+          displayName={row.displayName}
+          depth={row.depth}
+        />
+      ) : (
+        <FileChangeDirectoryRow
+          node={row.node}
+          depth={row.depth}
+          open={!collapsed.has(row.node.path)}
+          onToggle={toggleDirectory}
+        />
+      )}
     />
   )
 }

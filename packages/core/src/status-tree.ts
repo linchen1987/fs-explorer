@@ -73,6 +73,33 @@ export function buildFileChangeTree(files: readonly FileChange[]): FileChangeTre
   return buildPathTree(files, (file) => file.newPath)
 }
 
+export interface VisiblePathTreeNode<T> {
+  node: PathTreeNode<T>
+  depth: number
+}
+
+/** 只展开当前可见的目录，为虚拟列表提供扁平行；迭代实现避免深目录递归。 */
+export function flattenVisiblePathTree<T>(
+  nodes: readonly PathTreeNode<T>[],
+  collapsed: ReadonlySet<string>,
+): VisiblePathTreeNode<T>[] {
+  const rows: VisiblePathTreeNode<T>[] = []
+  const pending: VisiblePathTreeNode<T>[] = []
+  for (let index = nodes.length - 1; index >= 0; index--) {
+    pending.push({ node: nodes[index], depth: 0 })
+  }
+
+  while (pending.length > 0) {
+    const row = pending.pop()!
+    rows.push(row)
+    if (row.node.kind !== "directory" || collapsed.has(row.node.path)) continue
+    for (let index = row.node.children.length - 1; index >= 0; index--) {
+      pending.push({ node: row.node.children[index], depth: row.depth + 1 })
+    }
+  }
+  return rows
+}
+
 function sortDirectoriesFirst<T>(nodes: PathTreeNode<T>[]) {
   nodes.sort((a, b) => {
     if (a.kind === b.kind) return 0

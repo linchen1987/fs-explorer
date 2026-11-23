@@ -18,6 +18,7 @@ import { FileChangeList, FileListViewModeToggle } from "@/components/FileChangeL
 import type { FileListViewMode } from "@/components/FileChangeList"
 import { BranchCombobox } from "@/components/branch-combobox"
 import { DiffViewer } from "@/components/diff/DiffViewer"
+import { StatDelta } from "@/components/StatusBadge"
 import { useCompareStore } from "@/stores/compare"
 import { useFileNavigationStore } from "@/stores/file-navigation"
 import type { ModuleProps } from "@/modules/registry"
@@ -119,7 +120,8 @@ export function BranchCompareModule({ project }: ModuleProps) {
 
   // ---- 渲染 ----
 
-  if (branches.loading) {
+  const bl = branches.data
+  if (branches.loading && !bl) {
     return (
       <div className="flex flex-col gap-3 p-4">
         <Skeleton className="h-7 w-96" />
@@ -141,7 +143,6 @@ export function BranchCompareModule({ project }: ModuleProps) {
     )
   }
 
-  const bl = branches.data
   if (!bl || bl.branches.length === 0) {
     return (
       <CenterHint
@@ -158,7 +159,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* 工具栏：base ... head */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
+      <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-2.5 border-b bg-card/20 px-4 py-2">
         <BranchCombobox
           value={base}
           branches={bl.branches}
@@ -179,7 +180,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
           <ArrowLeftRight />
         </Button>
 
-        <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {compare.loading ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : r ? (
@@ -188,12 +189,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
                 <span className="font-medium text-foreground">{r.files.length}</span>{" "}
                 个文件
               </span>
-              <span className="font-mono text-emerald-600 dark:text-emerald-400">
-                +{r.totalAdditions}
-              </span>
-              <span className="font-mono text-red-600 dark:text-red-400">
-                −{r.totalDeletions}
-              </span>
+              <StatDelta additions={r.totalAdditions} deletions={r.totalDeletions} />
               <span className="text-muted-foreground/60">·</span>
               <span>{r.commits.length} 个提交</span>
               {r.mergeBase && (
@@ -226,14 +222,14 @@ export function BranchCompareModule({ project }: ModuleProps) {
         />
       ) : (
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-          <ResizablePanel defaultSize="30%" minSize="20%" maxSize="50%">
+          <ResizablePanel defaultSize="30%" minSize="20%" maxSize="50%" className="bg-panel">
             <Tabs
               value={listTab}
               onValueChange={(v) => setListTab(v as "files" | "commits")}
               className="flex h-full min-h-0 flex-col"
             >
-              <div className="flex h-9 shrink-0 items-center justify-between gap-1 border-b px-2">
-                <TabsList className="h-7">
+              <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
+                <TabsList className="h-8">
                   <TabsTrigger value="files">文件 {files.length}</TabsTrigger>
                   <TabsTrigger value="commits">提交 {commits.length}</TabsTrigger>
                 </TabsList>
@@ -244,7 +240,7 @@ export function BranchCompareModule({ project }: ModuleProps) {
               <TabsContent
                 value="files"
                 forceMount
-                className="min-h-0 flex-1 overflow-auto p-1 data-[state=inactive]:hidden"
+                className="min-h-0 flex-1 data-[state=inactive]:hidden"
               >
                 {files.length === 0 ? (
                   <CenterHint
@@ -277,10 +273,10 @@ export function BranchCompareModule({ project }: ModuleProps) {
                   commits.map((c) => (
                     <div
                       key={c.sha}
-                      className="border-b border-border/50 px-3 py-2 text-[13px] last:border-b-0"
+                      className="border-b border-border/60 px-3 py-2.5 text-sm last:border-b-0"
                     >
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span className="rounded bg-muted px-1 font-mono text-violet-600 dark:text-violet-400">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-commit">
                           {c.shortSha}
                         </span>
                         <span className="truncate">{c.authorName}</span>
