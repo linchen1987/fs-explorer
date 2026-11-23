@@ -1,14 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
 import type { PointerEvent as ReactPointerEvent } from "react"
 import { listen } from "@tauri-apps/api/event"
 import { FitAddon } from "@xterm/addon-fit"
 import { Terminal } from "@xterm/xterm"
 import type { ITheme } from "@xterm/xterm"
-import { SquareTerminal, X } from "lucide-react"
+import { FolderInput, SquareTerminal, X } from "lucide-react"
 import { useTheme } from "next-themes"
+import { toast } from "sonner"
 import "@xterm/xterm/css/xterm.css"
 import { errText } from "@/lib/async"
 import { ipc } from "@/lib/ipc"
+import { useSelectedProject } from "@/stores/projects"
 import { useTerminalStore } from "@/stores/terminal"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -33,18 +35,23 @@ interface TerminalExit {
   code: number | null
 }
 
+// 与 index.css 的工作台色板保持一致，避免终端成为独立的纯黑/纯白色块。
 const darkTheme: ITheme = {
-  background: "#111214",
-  foreground: "#d7d7d7",
-  cursor: "#f2f2f2",
-  selectionBackground: "#264f78",
+  background: "#17191F",
+  foreground: "#D7DBE5",
+  cursor: "#A6ADF5",
+  cursorAccent: "#17191F",
+  selectionBackground: "#3A405D",
+  selectionForeground: "#F0F2F8",
 }
 
 const lightTheme: ITheme = {
-  background: "#f8f8f8",
-  foreground: "#252526",
-  cursor: "#252526",
-  selectionBackground: "#add6ff",
+  background: "#F7F8FA",
+  foreground: "#2B303B",
+  cursor: "#5962BD",
+  cursorAccent: "#F7F8FA",
+  selectionBackground: "#DDE2F6",
+  selectionForeground: "#2B303B",
 }
 
 function decodeOutput(data: string): Uint8Array {
@@ -58,6 +65,10 @@ function clampHeight(height: number): number {
   return Math.min(Math.max(height, MIN_HEIGHT), Math.round(window.innerHeight * 0.75))
 }
 
+interface TerminalSessionHandle {
+  changeDirectory: (path: string) => Promise<void>
+}
+
 interface TerminalSessionProps {
   repo: string
   visible: boolean
@@ -65,12 +76,25 @@ interface TerminalSessionProps {
   onExit: () => void
 }
 
-function TerminalSession({ repo, visible, onStatusChange, onExit }: TerminalSessionProps) {
+const TerminalSession = forwardRef<TerminalSessionHandle, TerminalSessionProps>(function TerminalSession(
+  { repo, visible, onStatusChange, onExit },
+  ref,
+) {
   const hostRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  const sessionIdRef = useRef<string | null>(null)
   const { resolvedTheme } = useTheme()
   const dark = resolvedTheme !== "light"
+
+  useImperativeHandle(ref, () => ({
+    changeDirectory: async (path) => {
+      const sessionId = sessionIdRef.current
+      if (!sessionId) throw new Error("终端尚未连接或已经退出")
+      await ipc.changeTerminalDirectory(sessionId, path)
+      terminalRef.current?.focus()
+    },
+  }), [])
 
   useEffect(() => {
     const terminal = terminalRef.current
@@ -94,8 +118,8 @@ function TerminalSession({ repo, visible, onStatusChange, onExit }: TerminalSess
       cursorBlink: true,
       cursorStyle: "bar",
       fontFamily: '"SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace',
-      fontSize: 12,
-      lineHeight: 1.25,
+      fontSize: 13,
+      lineHeight: 1.4,
       macOptionIsMeta: true,
       rightClickSelectsWord: true,
       scrollback: 3000,
@@ -110,6 +134,7 @@ function TerminalSession({ repo, visible, onStatusChange, onExit }: TerminalSess
     const writeExit = (event: TerminalExit) => {
       if (event.id !== sessionId || disposed) return
       running = false
+      sessionIdRef.current = null
       terminal.options.disableStdin = true
       const code = event.code == null ? "" : `，退出码 ${event.code}`
       terminal.writeln(`\r\n\x1b[90m[进程已退出${code}]\x1b[0m`)
@@ -179,6 +204,7 @@ function TerminalSession({ repo, visible, onStatusChange, onExit }: TerminalSess
           return
         }
         sessionId = id
+        sessionIdRef.current = id
         running = true
         terminal.options.disableStdin = false
         onStatusChange("running")
@@ -212,13 +238,15 @@ function TerminalSession({ repo, visible, onStatusChange, onExit }: TerminalSess
       unlistenExit?.()
       if (sessionId) void ipc.closeTerminal(sessionId).catch(() => {})
       sessionId = null
+      sessionIdRef.current = null
       terminal.dispose()
       terminalRef.current = null
       fitRef.current = null
     }
-    // repo 由全局会话固定，项目切换不会重建 TerminalSession；主题由单独 effect 更新。
+    // repo 仅用于首次连接；手动切换项目会向现有 shell 发送 cd，不能重建 TerminalSession。
+    // 主题由单独 effect 更新。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repo, onExit, onStatusChange])
+  }, [onExit, onStatusChange])
 
   useEffect(() => {
     if (!visible) return
@@ -230,11 +258,11 @@ function TerminalSession({ repo, visible, onStatusChange, onExit }: TerminalSess
   }, [visible])
 
   return (
-    <div className="min-h-0 flex-1 overflow-hidden bg-[#f8f8f8] px-2 py-1 dark:bg-[#111214]">
+    <div className="min-h-0 flex-1 overflow-hidden bg-terminal px-3 py-2">
       <div ref={hostRef} className="h-full w-full" aria-label="交互式终端" />
     </div>
   )
-}
+})
 
 interface TerminalPanelProps {
   repo: string
@@ -252,8 +280,12 @@ export default function TerminalPanel({
   const [height, setHeight] = useState(DEFAULT_HEIGHT)
   const [status, setStatus] = useState<TerminalStatus>("connecting")
   const [started, setStarted] = useState(visible)
+  const [switching, setSwitching] = useState(false)
   const dragRef = useRef<{ y: number; height: number } | null>(null)
+  const sessionRef = useRef<TerminalSessionHandle>(null)
+  const currentProject = useSelectedProject()
   const resetTerminal = useTerminalStore((s) => s.reset)
+  const switchProject = useTerminalStore((s) => s.switchProject)
 
   useEffect(() => {
     if (visible) setStarted(true)
@@ -265,6 +297,23 @@ export default function TerminalPanel({
     setStatus("connecting")
     resetTerminal()
   }, [resetTerminal])
+
+  async function handleSwitchProject() {
+    const target = currentProject
+    const session = sessionRef.current
+    if (!target || !session || target.path === repo || switching) return
+
+    setSwitching(true)
+    try {
+      await session.changeDirectory(target.path)
+      // cd 已写入现有 PTY，只更新会话标签，不重建 shell 或 xterm。
+      switchProject(target)
+    } catch (error) {
+      toast.error("切换终端目录失败", { description: errText(error) })
+    } finally {
+      setSwitching(false)
+    }
+  }
 
   function startDrag(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.button !== 0) return
@@ -308,7 +357,7 @@ export default function TerminalPanel({
         aria-valuemax={Math.round(window.innerHeight * 0.75)}
         aria-valuenow={height}
         tabIndex={0}
-        className="absolute inset-x-0 top-0 z-10 h-1 -translate-y-1/2 cursor-row-resize touch-none focus-visible:bg-primary focus-visible:outline-none"
+        className="absolute inset-x-0 top-0 z-10 h-2 -translate-y-1/2 cursor-row-resize touch-none rounded-full transition-colors hover:bg-ring/30 focus-visible:bg-ring/50 focus-visible:outline-none"
         onPointerDown={startDrag}
         onPointerMove={drag}
         onPointerUp={stopDrag}
@@ -321,18 +370,35 @@ export default function TerminalPanel({
           }
         }}
       />
-      <header className="flex h-9 shrink-0 items-center gap-2 border-b px-3">
-        <SquareTerminal className="size-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium">终端</span>
-        <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+      <header className="flex h-10 shrink-0 items-center gap-2.5 border-b bg-panel px-4">
+        <SquareTerminal className="size-4 text-muted-foreground" />
+        <span className="text-sm font-medium">终端</span>
+        <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
           <span className={cn(
             "size-1.5 shrink-0 rounded-full bg-muted-foreground/50",
-            status === "running" && "bg-emerald-500",
+            status === "running" && "bg-success",
             status === "error" && "bg-destructive",
           )} />
           <span className="truncate">{statusText}</span>
         </span>
         <div className="ml-auto flex items-center gap-0.5">
+          {currentProject && currentProject.path !== repo && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  disabled={status !== "running" || switching}
+                  onClick={() => void handleSwitchProject()}
+                  aria-label={`将终端切换到${currentProject.name}`}
+                >
+                  <FolderInput />
+                  <span className="max-w-36 truncate">切换到 {currentProject.name}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>终端空闲时，将当前 shell 的工作目录切换到「{currentProject.name}」</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon-xs" onClick={onHide} aria-label="隐藏终端">
@@ -345,6 +411,7 @@ export default function TerminalPanel({
       </header>
       {started && (
         <TerminalSession
+          ref={sessionRef}
           repo={repo}
           visible={visible}
           onStatusChange={setStatus}

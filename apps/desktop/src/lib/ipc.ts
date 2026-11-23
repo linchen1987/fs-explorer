@@ -38,6 +38,8 @@ export const ipc = {
     invoke<string>("open_terminal", { repo, cols, rows }),
   writeTerminal: (id: string, data: string) =>
     invoke<void>("write_terminal", { id, data }),
+  changeTerminalDirectory: (id: string, path: string) =>
+    invoke<void>("change_terminal_directory", { id, path }),
   resizeTerminal: (id: string, cols: number, rows: number) =>
     invoke<void>("resize_terminal", { id, cols, rows }),
   closeTerminal: (id: string) => invoke<void>("close_terminal", { id }),

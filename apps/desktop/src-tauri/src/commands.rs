@@ -239,6 +239,15 @@ pub fn write_terminal(
 }
 
 #[tauri::command]
+pub fn change_terminal_directory(
+    state: State<'_, TerminalState>,
+    id: String,
+    path: String,
+) -> Result<(), String> {
+    crate::terminal::change_directory(state.inner(), &id, &path)
+}
+
+#[tauri::command]
 pub fn resize_terminal(
     state: State<'_, TerminalState>,
     id: String,

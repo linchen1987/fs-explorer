@@ -60,6 +60,7 @@ pub fn run() {
             commands::unstage_paths,
             commands::open_terminal,
             commands::write_terminal,
+            commands::change_terminal_directory,
             commands::resize_terminal,
             commands::close_terminal,
         ])

@@ -52,6 +52,33 @@ describe("global terminal", () => {
     expect(useTerminalStore.getState().session).toBe(session)
   })
 
+  it("手动切换项目时更新会话目录并保持终端打开", () => {
+    const { toggle, switchProject } = useTerminalStore.getState()
+    toggle(firstProject)
+    const firstSession = useTerminalStore.getState().session
+
+    switchProject(secondProject)
+
+    expect(useTerminalStore.getState().visible).toBe(true)
+    expect(useTerminalStore.getState().session).toEqual({
+      repo: secondProject.path,
+      projectName: secondProject.name,
+    })
+    expect(useTerminalStore.getState().session).not.toBe(firstSession)
+  })
+
+  it("重复切换到相同项目不会重复更新会话", () => {
+    const { toggle, switchProject } = useTerminalStore.getState()
+    toggle(firstProject)
+    const session = useTerminalStore.getState().session
+    useTerminalStore.getState().hide()
+
+    switchProject(firstProject)
+
+    expect(useTerminalStore.getState().visible).toBe(true)
+    expect(useTerminalStore.getState().session).toBe(session)
+  })
+
   it("shell 退出后清空会话，切换项目再打开时绑定当前项目", () => {
     const { toggle, reset } = useTerminalStore.getState()
     toggle(firstProject)

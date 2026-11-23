@@ -134,6 +134,25 @@ pub(crate) fn write(state: &TerminalState, id: &str, data: &str) -> Result<(), S
         .map_err(|e| format!("写入终端失败: {e}"))
 }
 
+pub(crate) fn change_directory(state: &TerminalState, id: &str, path: &str) -> Result<(), String> {
+    if !Path::new(path).is_dir() {
+        return Err(format!("终端工作目录不存在或不是目录: {path}"));
+    }
+    write(state, id, &change_directory_input(path))
+}
+
+#[cfg(unix)]
+fn change_directory_input(path: &str) -> String {
+    // 单引号保护空格与 shell 元字符；路径中的单引号用 '"'"' 安全闭合后重开。
+    format!("cd -- '{}'\r", path.replace('\'', "'\"'\"'"))
+}
+
+#[cfg(windows)]
+fn change_directory_input(path: &str) -> String {
+    // Windows 文件名不允许双引号；/d 同时处理跨盘符切换。
+    format!("cd /d \"{path}\"\r")
+}
+
 pub(crate) fn resize(state: &TerminalState, id: &str, cols: u16, rows: u16) -> Result<(), String> {
     let size = pty_size(cols, rows)?;
     let sessions = state.sessions();
@@ -236,4 +255,17 @@ fn lock_sessions(
     sessions: &Mutex<HashMap<String, TerminalSession>>,
 ) -> MutexGuard<'_, HashMap<String, TerminalSession>> {
     sessions.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::change_directory_input;
+
+    #[test]
+    fn quotes_unix_cd_paths_and_shell_metacharacters() {
+        assert_eq!(
+            change_directory_input("/tmp/it's fine; $HOME"),
+            "cd -- '/tmp/it'\"'\"'s fine; $HOME'\r"
+        );
+    }
 }
