@@ -97,6 +97,10 @@ function TreeNode({
       title={conflicted ? `${node.path}（合并冲突）` : node.path}
       aria-expanded={directory ? open : undefined}
       aria-current={!directory && selectedPath === node.path ? "page" : undefined}
+      onPointerDown={(event) => {
+        // WKWebView 点击按钮不一定自动聚焦，而原生 copy 事件需要从列表内派发。
+        event.currentTarget.focus()
+      }}
       onClick={() => directory ? onToggle(node.path) : onSelect(node.path)}
     >
       {directory ? (
@@ -314,26 +318,22 @@ export function FileTree({
   }, [repo])
 
   // macOS 上 ⌘C 被原生菜单（Edit → Copy）拦截，keydown 收不到；
-  // WebKit 会转而派发原生 copy 事件。WKWebView 点击按钮不一定移动焦点，
-  // 因此不能依赖 activeElement 在树内，只排除可编辑目标（搜索框、编辑器等）。
-  useEffect(() => {
-    function onCopy(event: ClipboardEvent) {
-      if (!selectedPath) return
-      const target = event.target as HTMLElement | null
-      if (
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.isContentEditable)
-      ) {
-        return
-      }
-      event.preventDefault()
-      void copyFile(selectedPath)
+  // WebKit 会转而派发原生 copy 事件。只在文件列表内接管该事件，
+  // 避免覆盖 Markdown 预览等区域的文本复制。
+  function handleTreeCopy(event: React.ClipboardEvent<HTMLDivElement>) {
+    if (!selectedPath) return
+    const target = event.target as HTMLElement | null
+    if (
+      target &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable)
+    ) {
+      return
     }
-    document.addEventListener("copy", onCopy)
-    return () => document.removeEventListener("copy", onCopy)
-  }, [selectedPath, copyFile])
+    event.preventDefault()
+    void copyFile(selectedPath)
+  }
 
   function handleTreeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "c") return
@@ -402,6 +402,7 @@ export function FileTree({
       <div
         className="min-h-0 flex-1 overflow-auto py-1"
         aria-busy={searchWaiting}
+        onCopy={handleTreeCopy}
         onKeyDown={handleTreeKeyDown}
       >
         {searching ? (
