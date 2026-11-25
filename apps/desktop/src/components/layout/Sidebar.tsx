@@ -1,4 +1,21 @@
 import { useState } from "react"
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 import { open } from "@tauri-apps/plugin-dialog"
 import { toast } from "sonner"
 import {
@@ -87,16 +104,30 @@ function ProjectListItem({
   const selected = useProjectsStore((s) => s.selectedPath === project.path)
   const select = useProjectsStore((s) => s.select)
   const status = useProjectsStore((s) => s.statuses[project.path])
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: project.path })
   const ProjectIcon = project.isGitRepo ? FolderGit2 : Folder
 
   return (
     <div
+      ref={setNodeRef}
+      data-project-path={project.path}
+      {...attributes}
+      {...listeners}
       onClick={() => select(project.path)}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "group cursor-pointer rounded-lg px-2.5 py-2 transition-colors",
+        "group cursor-grab touch-none select-none rounded-lg px-2.5 py-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing",
         selected
           ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_var(--sidebar-border)]"
           : "hover:bg-sidebar-accent/60",
+        isDragging && "z-10 opacity-40",
       )}
     >
       <div className="flex items-center gap-2">
@@ -115,6 +146,8 @@ function ProjectListItem({
               variant="ghost"
               size="icon-xs"
               className="opacity-0 transition-opacity focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+              onPointerDown={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal />
@@ -145,11 +178,28 @@ export function Sidebar() {
   const projects = useProjectsStore((s) => s.projects)
   const add = useProjectsStore((s) => s.add)
   const remove = useProjectsStore((s) => s.remove)
+  const reorder = useProjectsStore((s) => s.reorder)
   const refreshStatuses = useProjectsStore((s) => s.refreshStatuses)
   const gitVersion = useProjectsStore((s) => s.gitVersion)
   const gitVersionError = useProjectsStore((s) => s.gitVersionError)
   const [removing, setRemoving] = useState<Project | null>(null)
   const [adding, setAdding] = useState(false)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return
+    const oldIndex = projects.findIndex((p) => p.path === active.id)
+    const newIndex = projects.findIndex((p) => p.path === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+
+    const nextProjects = arrayMove(projects, oldIndex, newIndex)
+    void reorder(nextProjects).catch((e) => {
+      toast.error("保存项目顺序失败", { description: errText(e) })
+    })
+  }
 
   async function handleAdd() {
     if (adding) return
@@ -223,21 +273,37 @@ export function Sidebar() {
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-1 px-2.5 pb-3">
-          {projects.length === 0 ? (
-            <div className="px-2 py-6 text-center text-xs leading-relaxed text-muted-foreground">
-              还没有项目
-              <br />
-              点击右上角 <Plus className="inline size-3" /> 添加一个
-              <br />
-              本地目录（支持普通目录）
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          accessibility={{
+            screenReaderInstructions: {
+              draggable: "按空格键或回车键开始排序，使用方向键移动，再按一次确认，按 Escape 取消。",
+            },
+          }}
+        >
+          <SortableContext
+            items={projects.map((p) => p.path)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-1 px-2.5 pb-3">
+              {projects.length === 0 ? (
+                <div className="px-2 py-6 text-center text-xs leading-relaxed text-muted-foreground">
+                  还没有项目
+                  <br />
+                  点击右上角 <Plus className="inline size-3" /> 添加一个
+                  <br />
+                  本地目录（支持普通目录）
+                </div>
+              ) : (
+                projects.map((p) => (
+                  <ProjectListItem key={p.path} project={p} onAskRemove={setRemoving} />
+                ))
+              )}
             </div>
-          ) : (
-            projects.map((p) => (
-              <ProjectListItem key={p.path} project={p} onAskRemove={setRemoving} />
-            ))
-          )}
-        </div>
+          </SortableContext>
+        </DndContext>
       </ScrollArea>
 
       <div className="flex h-11 shrink-0 items-center gap-1.5 border-t border-sidebar-border px-3 text-xs text-muted-foreground">

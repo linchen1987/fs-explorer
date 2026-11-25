@@ -1,7 +1,8 @@
 //! 暴露给前端的 Tauri commands（薄封装，逻辑都在 files/git/state/terminal 模块中）。
 
-use crate::state::{AppState, Project, now_rfc3339, sort_projects_newest_first};
+use crate::state::{AppState, Project, now_rfc3339};
 use crate::terminal::TerminalState;
+use std::collections::HashSet;
 use tauri::{AppHandle, State};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
@@ -62,11 +63,44 @@ pub async fn add_project(state: State<'_, AppState>, path: String) -> Result<Pro
         added_at: now_rfc3339(),
         is_git_repo,
     };
-    // 新项先放在最前，配合稳定排序，确保同一秒内后添加的项目也排在前面。
+    // 新项置于最前，其余项目保留用户拖拽后的顺序。
     projects.insert(0, project.clone());
-    sort_projects_newest_first(&mut projects);
     state.save(&projects)?;
     Ok(project)
+}
+
+/// 按前端提交的完整路径列表重排，拒绝遗漏、重复或未知项目。
+fn reorder_project_list(projects: &[Project], paths: &[String]) -> Result<Vec<Project>, String> {
+    let invalid = || "项目排序数据与当前列表不一致，请刷新后重试".to_string();
+    if paths.len() != projects.len() {
+        return Err(invalid());
+    }
+
+    let mut seen = HashSet::with_capacity(paths.len());
+    let mut ordered = Vec::with_capacity(paths.len());
+    for path in paths {
+        if !seen.insert(path) {
+            return Err(invalid());
+        }
+        let project = projects
+            .iter()
+            .find(|p| &p.path == path)
+            .ok_or_else(invalid)?;
+        ordered.push(project.clone());
+    }
+    Ok(ordered)
+}
+
+#[tauri::command]
+pub async fn reorder_projects(
+    state: State<'_, AppState>,
+    paths: Vec<String>,
+) -> Result<(), String> {
+    let mut projects = state.projects.lock().unwrap();
+    let ordered = reorder_project_list(&projects, &paths)?;
+    state.save(&ordered)?;
+    *projects = ordered;
+    Ok(())
 }
 
 #[tauri::command]
@@ -264,7 +298,49 @@ pub fn close_terminal(app: AppHandle, state: State<'_, TerminalState>, id: Strin
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_project_location;
+    use super::{Project, reorder_project_list, resolve_project_location};
+
+    fn project(path: &str) -> Project {
+        Project {
+            path: path.into(),
+            name: path.rsplit('/').next().unwrap().into(),
+            added_at: "2026-01-01T00:00:00Z".into(),
+            is_git_repo: true,
+        }
+    }
+
+    #[test]
+    fn reorders_projects_by_the_complete_path_list() {
+        let projects = vec![
+            project("/repos/first"),
+            project("/repos/second"),
+            project("/repos/third"),
+        ];
+        let paths = vec![
+            "/repos/third".into(),
+            "/repos/first".into(),
+            "/repos/second".into(),
+        ];
+
+        let ordered = reorder_project_list(&projects, &paths).unwrap();
+
+        let names = ordered.iter().map(|p| p.name.as_str()).collect::<Vec<_>>();
+        assert_eq!(names, ["third", "first", "second"]);
+    }
+
+    #[test]
+    fn rejects_incomplete_duplicate_and_unknown_reorder_paths() {
+        let projects = vec![project("/repos/first"), project("/repos/second")];
+        let invalid_paths = [
+            vec!["/repos/first".into()],
+            vec!["/repos/first".into(), "/repos/first".into()],
+            vec!["/repos/first".into(), "/repos/unknown".into()],
+        ];
+
+        for paths in invalid_paths {
+            assert!(reorder_project_list(&projects, &paths).is_err());
+        }
+    }
 
     #[test]
     fn accepts_a_non_git_directory() {

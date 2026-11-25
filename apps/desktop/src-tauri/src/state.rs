@@ -34,11 +34,6 @@ pub struct AppState {
     pub projects: Mutex<Vec<Project>>,
 }
 
-/// 按添加时间倒序；稳定排序会保留相同时间戳项目的现有先后顺序。
-pub(crate) fn sort_projects_newest_first(projects: &mut [Project]) {
-    projects.sort_by(|a, b| b.added_at.cmp(&a.added_at));
-}
-
 impl AppState {
     /// 初始化：读取配置目录中的 projects.json（不存在或损坏时从空列表开始）。
     #[cfg(test)]
@@ -75,11 +70,7 @@ impl AppState {
     fn load(path: &Path) -> Option<Vec<Project>> {
         let raw = fs::read_to_string(path).ok()?;
         match serde_json::from_str::<ProjectFile>(&raw) {
-            Ok(f) => {
-                let mut projects = f.projects;
-                sort_projects_newest_first(&mut projects);
-                Some(projects)
-            }
+            Ok(f) => Some(f.projects),
             Err(e) => {
                 eprintln!("[fs-explorer] projects.json 解析失败({e})，已忽略");
                 None
@@ -156,7 +147,7 @@ mod tests {
     }
 
     #[test]
-    fn load_sorts_projects_newest_first() {
+    fn load_preserves_saved_project_order() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(
             dir.path().join("projects.json"),
@@ -175,7 +166,7 @@ mod tests {
         let state = AppState::init(dir.path().to_path_buf());
         let projects = state.projects.lock().unwrap();
         let names = projects.iter().map(|p| p.name.as_str()).collect::<Vec<_>>();
-        assert_eq!(names, ["newest", "first", "second", "oldest"]);
+        assert_eq!(names, ["oldest", "first", "newest", "second"]);
         assert!(projects.iter().all(|p| p.is_git_repo));
     }
 

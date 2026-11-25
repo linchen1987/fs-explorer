@@ -22,6 +22,7 @@ interface ProjectsState {
   init: () => Promise<void>
   add: (path: string) => Promise<Project>
   remove: (path: string) => Promise<void>
+  reorder: (projects: Project[]) => Promise<void>
   select: (path: string) => void
   refreshStatuses: () => Promise<void>
   refreshStatus: (path: string) => Promise<void>
@@ -29,6 +30,8 @@ interface ProjectsState {
 
 /** 同一项目的并发刷新共享一个 Git 请求。 */
 const statusRequests = new Map<string, Promise<void>>()
+/** 较旧的保存失败时，不覆盖用户随后完成的新排序。 */
+let reorderRevision = 0
 
 export const useProjectsStore = create<ProjectsState>((set, get) => ({
   projects: [],
@@ -85,6 +88,18 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       statusLoading: nextLoading,
       selectedPath: selectedPath === path ? projects[0]?.path ?? null : selectedPath,
     })
+  },
+
+  reorder: async (nextProjects) => {
+    const previousProjects = get().projects
+    const revision = ++reorderRevision
+    set({ projects: nextProjects })
+    try {
+      await ipc.reorderProjects(nextProjects.map((p) => p.path))
+    } catch (e) {
+      if (revision === reorderRevision) set({ projects: previousProjects })
+      throw e
+    }
   },
 
   select: (path) => {
