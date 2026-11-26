@@ -69,6 +69,43 @@ pub async fn add_project(state: State<'_, AppState>, path: String) -> Result<Pro
     Ok(project)
 }
 
+/// 修改显示名并保留项目路径、顺序及其他元数据。
+fn rename_project_list(
+    projects: &[Project],
+    path: &str,
+    name: &str,
+) -> Result<(Vec<Project>, Project), String> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("项目名称不能为空".into());
+    }
+    if name.chars().count() > 80 {
+        return Err("项目名称不能超过 80 个字符".into());
+    }
+
+    let mut next = projects.to_vec();
+    let index = next
+        .iter()
+        .position(|project| project.path == path)
+        .ok_or_else(|| "项目不存在".to_string())?;
+    next[index].name = name.into();
+    let renamed = next[index].clone();
+    Ok((next, renamed))
+}
+
+#[tauri::command]
+pub async fn rename_project(
+    state: State<'_, AppState>,
+    path: String,
+    name: String,
+) -> Result<Project, String> {
+    let mut projects = state.projects.lock().unwrap();
+    let (next, renamed) = rename_project_list(&projects, &path, &name)?;
+    state.save(&next)?;
+    *projects = next;
+    Ok(renamed)
+}
+
 /// 按前端提交的完整路径列表重排，拒绝遗漏、重复或未知项目。
 fn reorder_project_list(projects: &[Project], paths: &[String]) -> Result<Vec<Project>, String> {
     let invalid = || "项目排序数据与当前列表不一致，请刷新后重试".to_string();
@@ -298,7 +335,7 @@ pub fn close_terminal(app: AppHandle, state: State<'_, TerminalState>, id: Strin
 
 #[cfg(test)]
 mod tests {
-    use super::{Project, reorder_project_list, resolve_project_location};
+    use super::{Project, rename_project_list, reorder_project_list, resolve_project_location};
 
     fn project(path: &str) -> Project {
         Project {
@@ -340,6 +377,29 @@ mod tests {
         for paths in invalid_paths {
             assert!(reorder_project_list(&projects, &paths).is_err());
         }
+    }
+
+    #[test]
+    fn renames_only_the_target_project_and_preserves_order() {
+        let projects = vec![project("/work/service"), project("/personal/service")];
+
+        let (next, renamed) =
+            rename_project_list(&projects, "/personal/service", "  个人后端服务  ").unwrap();
+
+        assert_eq!(renamed.name, "个人后端服务");
+        assert_eq!(renamed.path, "/personal/service");
+        assert_eq!(next[0].name, "service");
+        assert_eq!(next[1].name, "个人后端服务");
+        assert_eq!(next[0].path, "/work/service");
+        assert_eq!(next[1].path, "/personal/service");
+    }
+
+    #[test]
+    fn rejects_empty_long_and_unknown_project_renames() {
+        let projects = vec![project("/repos/first")];
+        assert!(rename_project_list(&projects, "/repos/first", "   ").is_err());
+        assert!(rename_project_list(&projects, "/repos/first", &"名".repeat(81)).is_err());
+        assert!(rename_project_list(&projects, "/repos/unknown", "新名称").is_err());
     }
 
     #[test]

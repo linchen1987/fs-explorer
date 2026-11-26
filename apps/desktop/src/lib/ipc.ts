@@ -47,6 +47,8 @@ export const ipc = {
   listProjects: () => invoke<Project[]>("list_projects"),
   addProject: (path: string) => invoke<Project>("add_project", { path }),
   removeProject: (path: string) => invoke<void>("remove_project", { path }),
+  renameProject: (path: string, name: string) =>
+    invoke<Project>("rename_project", { path, name }),
   reorderProjects: (paths: string[]) => invoke<void>("reorder_projects", { paths }),
 
   listProjectDirectory,

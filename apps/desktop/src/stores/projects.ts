@@ -22,6 +22,7 @@ interface ProjectsState {
   init: () => Promise<void>
   add: (path: string) => Promise<Project>
   remove: (path: string) => Promise<void>
+  rename: (path: string, name: string) => Promise<Project>
   reorder: (projects: Project[]) => Promise<void>
   select: (path: string) => void
   refreshStatuses: () => Promise<void>
@@ -88,6 +89,16 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       statusLoading: nextLoading,
       selectedPath: selectedPath === path ? projects[0]?.path ?? null : selectedPath,
     })
+  },
+
+  rename: async (path, name) => {
+    const renamed = await ipc.renameProject(path, name)
+    set((state) => ({
+      projects: state.projects.map((project) =>
+        project.path === path ? renamed : project,
+      ),
+    }))
+    return renamed
   },
 
   reorder: async (nextProjects) => {

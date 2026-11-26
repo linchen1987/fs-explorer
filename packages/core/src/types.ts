@@ -10,7 +10,7 @@
 export interface Project {
   /** 项目目录的绝对路径（同时作为唯一 id） */
   path: string
-  /** 展示名（目录名） */
+  /** 展示名（初始为目录名，可由用户自定义） */
   name: string
   /** 添加时间（RFC3339） */
   addedAt: string

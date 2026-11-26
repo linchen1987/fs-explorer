@@ -10,11 +10,15 @@ import { Sidebar } from "./Sidebar"
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
 const mocks = vi.hoisted(() => ({
+  renameProject: vi.fn(),
   reorderProjects: vi.fn(),
 }))
 
 vi.mock("@/lib/ipc", () => ({
-  ipc: { reorderProjects: mocks.reorderProjects },
+  ipc: {
+    renameProject: mocks.renameProject,
+    reorderProjects: mocks.reorderProjects,
+  },
 }))
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }))
@@ -68,10 +72,21 @@ async function pointer(target: HTMLElement, type: string, clientY: number) {
   await act(async () => {
     target.dispatchEvent(new PointerEvent(type, {
       pointerId: 1,
+      pointerType: "mouse",
       isPrimary: true,
       button: 0,
       clientX: 20,
       clientY,
+      bubbles: true,
+      cancelable: true,
+    }))
+  })
+}
+
+async function click(target: HTMLElement) {
+  await act(async () => {
+    target.dispatchEvent(new MouseEvent("click", {
+      button: 0,
       bubbles: true,
       cancelable: true,
     }))
@@ -150,5 +165,39 @@ describe("Sidebar 项目排序", () => {
     ])
     expect(useProjectsStore.getState().projects.map((project) => project.name))
       .toEqual(["second", "first", "third"])
+  })
+})
+
+describe("Sidebar 项目重命名", () => {
+  it("从项目菜单修改显示名并保存", async () => {
+    mocks.renameProject.mockImplementation(async (_path: string, name: string) => ({
+      ...projects[0],
+      name,
+    }))
+    const trigger = item(projects[0].path).querySelector("button")!
+
+    await pointer(trigger, "pointerdown", 20)
+    await pointer(trigger, "pointerup", 20)
+    const renameItem = Array.from(document.body.querySelectorAll<HTMLElement>(
+      '[data-slot="dropdown-menu-item"]',
+    )).find((element) => element.textContent?.includes("重命名"))
+    expect(renameItem, "缺少重命名菜单项").toBeDefined()
+    await click(renameItem!)
+
+    const input = document.body.querySelector<HTMLInputElement>("#project-name")
+    expect(input, "缺少项目名称输入框").not.toBeNull()
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!
+    await act(async () => {
+      setValue.call(input, "  客户端前端  ")
+      input!.dispatchEvent(new Event("input", { bubbles: true }))
+    })
+    await act(async () => {
+      input!.form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))
+    })
+
+    expect(mocks.renameProject).toHaveBeenCalledWith(projects[0].path, "客户端前端")
+    expect(useProjectsStore.getState().projects.map((project) => project.name))
+      .toEqual(["客户端前端", "second", "third"])
+    expect(useProjectsStore.getState().selectedPath).toBe(projects[0].path)
   })
 })

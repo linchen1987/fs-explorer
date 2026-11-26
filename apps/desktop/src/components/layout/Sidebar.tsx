@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 import {
   closestCenter,
   DndContext,
@@ -24,6 +24,7 @@ import {
   FolderGit2,
   GitBranch,
   MoreHorizontal,
+  Pencil,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -51,6 +52,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Tooltip,
@@ -96,9 +107,11 @@ function StatusLine({ status }: { status: StatusResult }) {
 
 function ProjectListItem({
   project,
+  onAskRename,
   onAskRemove,
 }: {
   project: Project
+  onAskRename: (p: Project) => void
   onAskRemove: (p: Project) => void
 }) {
   const selected = useProjectsStore((s) => s.selectedPath === project.path)
@@ -137,7 +150,7 @@ function ProjectListItem({
             selected ? "text-foreground" : "text-muted-foreground",
           )}
         />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium" title={project.path}>
           {project.name}
         </span>
         <DropdownMenu>
@@ -155,6 +168,9 @@ function ProjectListItem({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onSelect={() => onAskRename(project)}>
+              <Pencil /> 重命名
+            </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onSelect={() => onAskRemove(project)}>
               <Trash2 /> 从列表移除
             </DropdownMenuItem>
@@ -178,11 +194,15 @@ export function Sidebar() {
   const projects = useProjectsStore((s) => s.projects)
   const add = useProjectsStore((s) => s.add)
   const remove = useProjectsStore((s) => s.remove)
+  const rename = useProjectsStore((s) => s.rename)
   const reorder = useProjectsStore((s) => s.reorder)
   const refreshStatuses = useProjectsStore((s) => s.refreshStatuses)
   const gitVersion = useProjectsStore((s) => s.gitVersion)
   const gitVersionError = useProjectsStore((s) => s.gitVersionError)
   const [removing, setRemoving] = useState<Project | null>(null)
+  const [renaming, setRenaming] = useState<Project | null>(null)
+  const [renameInput, setRenameInput] = useState("")
+  const [renameSaving, setRenameSaving] = useState(false)
   const [adding, setAdding] = useState(false)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -218,6 +238,29 @@ export function Sidebar() {
       toast.error("添加项目失败", { description: errText(e) })
     } finally {
       setAdding(false)
+    }
+  }
+
+  function handleAskRename(project: Project) {
+    setRenaming(project)
+    setRenameInput(project.name)
+  }
+
+  async function handleRename(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!renaming || renameSaving) return
+    const name = renameInput.trim()
+    if (!name) return
+
+    setRenameSaving(true)
+    try {
+      const project = await rename(renaming.path, name)
+      toast.success(`项目已重命名为「${project.name}」`)
+      setRenaming(null)
+    } catch (e) {
+      toast.error("重命名项目失败", { description: errText(e) })
+    } finally {
+      setRenameSaving(false)
     }
   }
 
@@ -298,7 +341,12 @@ export function Sidebar() {
                 </div>
               ) : (
                 projects.map((p) => (
-                  <ProjectListItem key={p.path} project={p} onAskRemove={setRemoving} />
+                  <ProjectListItem
+                    key={p.path}
+                    project={p}
+                    onAskRename={handleAskRename}
+                    onAskRemove={setRemoving}
+                  />
                 ))
               )}
             </div>
@@ -327,6 +375,54 @@ export function Sidebar() {
           <TooltipContent>关闭并重新打开应用</TooltipContent>
         </Tooltip>
       </div>
+
+      <Dialog
+        open={renaming !== null}
+        onOpenChange={(open) => {
+          if (!open && !renameSaving) setRenaming(null)
+        }}
+      >
+        <DialogContent showCloseButton={!renameSaving}>
+          <form className="contents" onSubmit={handleRename}>
+            <DialogHeader>
+              <DialogTitle>重命名项目</DialogTitle>
+              <DialogDescription>
+                自定义名称只影响应用内显示，不会修改磁盘目录。
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2 py-2">
+              <Label htmlFor="project-name">项目名称</Label>
+              <Input
+                id="project-name"
+                value={renameInput}
+                onChange={(event) => setRenameInput(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
+                maxLength={80}
+                autoComplete="off"
+                autoFocus
+                disabled={renameSaving}
+                required
+              />
+              <p className="truncate text-xs text-muted-foreground" title={renaming?.path}>
+                {renaming?.path}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={renameSaving}
+                onClick={() => setRenaming(null)}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={renameSaving || !renameInput.trim()}>
+                {renameSaving ? "保存中…" : "保存"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={removing !== null}

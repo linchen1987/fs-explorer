@@ -14,7 +14,7 @@ fn default_is_git_repo() -> bool {
 pub struct Project {
     /// 项目目录绝对路径（同时作为唯一 id）；Git 项目会规范化到仓库根目录
     pub path: String,
-    /// 展示名（目录名）
+    /// 展示名（初始为目录名，可由用户自定义）
     pub name: String,
     /// 添加时间（RFC3339 UTC）
     pub added_at: String,
