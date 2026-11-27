@@ -9,8 +9,6 @@ import {
   FileCode2,
   FileText,
   Film,
-  Folder,
-  FolderOpen,
   HardDrive,
   Image,
   Link2,
@@ -125,19 +123,12 @@ function TreeNode({
       onClick={() => directory ? onToggle(node.path) : onSelect(node.path)}
     >
       {directory ? (
-        <>
-          <ChevronRight
-            className={cn(
-              "size-3.5 shrink-0 text-muted-foreground transition-transform",
-              open && "rotate-90",
-            )}
-          />
-          {open ? (
-            <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-          ) : (
-            <Folder className="size-3.5 shrink-0 text-muted-foreground" />
+        <ChevronRight
+          className={cn(
+            "size-3.5 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-90",
           )}
-        </>
+        />
       ) : (
         <FileTypeIcon path={node.path} />
       )}

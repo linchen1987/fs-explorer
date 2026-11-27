@@ -114,6 +114,19 @@ afterEach(async () => {
   document.body.querySelectorAll("[data-slot='context-menu-content']").forEach((node) => node.remove())
 })
 
+describe("FileTree 层级对齐", () => {
+  it("同层目录和文件使用相同缩进及单个前导图标", () => {
+    const directoryRow = row("src")
+    const fileRow = row("README.md")
+
+    expect(directoryRow.style.paddingLeft).toBe(fileRow.style.paddingLeft)
+    expect(directoryRow.querySelectorAll("svg")).toHaveLength(1)
+    expect(fileRow.querySelectorAll("svg")).toHaveLength(1)
+    expect(directoryRow.querySelector(".lucide-chevron-right")).not.toBeNull()
+    expect(directoryRow.querySelector(".lucide-folder, .lucide-folder-open")).toBeNull()
+  })
+})
+
 describe("FileTree 按需大小统计", () => {
   it("从文件右键菜单计算并显示大小，打开目录时不自动统计", async () => {
     expect(mocks.getProjectPathSize).not.toHaveBeenCalled()
