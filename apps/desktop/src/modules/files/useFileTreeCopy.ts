@@ -28,18 +28,18 @@ export function useFileTreeCopy({ repo, selectedPath }: UseFileTreeCopyOptions) 
     lastCopyRef.current = { repo, path, at: now }
 
     void ipc.copyFilesToClipboard(repo, [path]).then(() => {
-      toast.success("已复制文件，可在 Finder 等处粘贴", { description: path })
+      toast.success("已复制，可在 Finder 等处粘贴", { description: path })
     }).catch((error) => {
-      toast.error("复制文件失败", { description: errText(error) })
+      toast.error("复制失败", { description: errText(error) })
     })
   }, [repo])
 
   const copyPath = useCallback((path: string) => {
     const absolutePath = `${repo.replace(/\/+$/, "")}/${path}`
     void navigator.clipboard.writeText(absolutePath).then(() => {
-      toast.success("文件路径已复制", { description: absolutePath })
+      toast.success("路径已复制", { description: absolutePath })
     }).catch((error) => {
-      toast.error("复制文件路径失败", { description: errText(error) })
+      toast.error("复制路径失败", { description: errText(error) })
     })
   }, [repo])
 

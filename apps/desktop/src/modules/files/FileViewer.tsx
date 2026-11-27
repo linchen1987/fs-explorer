@@ -8,12 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FileContentView, isMarkdown, isSvg, type FileViewMode } from "./FileContentView"
-
-function formatSize(size: number) {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-}
+import { formatFileSize } from "./file-size"
 
 interface FileViewerProps {
   repo: string
@@ -131,7 +126,7 @@ export function FileViewer({
           </span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          {file && <span className="text-xs tabular-nums text-muted-foreground">{formatSize(file.size)}</span>}
+          {file && <span className="text-xs tabular-nums text-muted-foreground">{formatFileSize(file.size)}</span>}
           {canPreview && (
             <Tabs value={mode} onValueChange={(value) => onModeChange(value as FileViewMode)} className="gap-0">
               <TabsList className="h-7">

@@ -12,6 +12,7 @@ import type {
   HistoryPage,
   Project,
   ProjectFileContent,
+  ProjectPathSize,
   WorktreeStatus,
 } from "@fs-explorer/core"
 
@@ -54,10 +55,14 @@ export const ipc = {
   listProjectDirectory,
   searchProjectFiles: (repo: string, query: string, limit: number) =>
     invoke<FileSearchResult>("search_project_files", { repo, query, limit }),
+  getProjectPathSize: (repo: string, path: string) =>
+    invoke<ProjectPathSize>("get_project_path_size", { repo, path }),
   readProjectFile: (repo: string, path: string) =>
     invoke<ProjectFileContent>("read_project_file", { repo, path }),
   saveProjectFile: (repo: string, path: string, content: string) =>
     invoke<void>("save_project_file", { repo, path, content }),
+  deleteProjectPath: (repo: string, path: string) =>
+    invoke<void>("delete_project_path", { repo, path }),
   copyFilesToClipboard: (repo: string, paths: string[]) =>
     invoke<void>("copy_files_to_clipboard", { repo, paths }),
 

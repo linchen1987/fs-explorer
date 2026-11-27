@@ -26,7 +26,7 @@ import type { ModuleProps } from "@/modules/registry"
 import { FileTree } from "./FileTree"
 import { isMarkdown, isSvg, type FileViewMode } from "./FileContentView"
 import { FileViewer } from "./FileViewer"
-import { EMPTY_FILE_HISTORY, moveFileHistory, pushFileHistory } from "./file-history"
+import { EMPTY_FILE_HISTORY, moveFileHistory, pushFileHistory, removeDeletedPath } from "./file-history"
 
 type PendingAction =
   | { type: "select"; path: string }
@@ -141,6 +141,11 @@ export function FilesModule({ project, active }: ModuleProps) {
     if (!dirty) content.reload()
   })
 
+  function handlePathDeleted(path: string, kind: "file" | "directory") {
+    setHistory((current) => removeDeletedPath(current, path, kind))
+    emitRefresh()
+  }
+
   function resetViewer(path: string) {
     setDraft(null)
     setOriginal("")
@@ -235,6 +240,7 @@ export function FilesModule({ project, active }: ModuleProps) {
             conflictedPaths={conflictedPaths}
             onSelect={selectFile}
             onRefresh={() => setFilesRevision((current) => current + 1)}
+            onPathDeleted={handlePathDeleted}
           />
         </ResizablePanel>
         <ResizableHandle />

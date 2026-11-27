@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react"
 import type { ProjectFileContent } from "@fs-explorer/core"
 import { FileWarning } from "lucide-react"
 import { CenterHint } from "@/components/CenterHint"
+import { formatFileSize } from "./file-size"
 
 const CodeEditor = lazy(() =>
   import("./CodeEditor").then((module) => ({ default: module.CodeEditor })),
@@ -18,12 +19,6 @@ export function isMarkdown(path: string) {
 
 export function isSvg(path: string) {
   return path.toLocaleLowerCase().endsWith(".svg")
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 function EditorLoading() {
@@ -152,7 +147,7 @@ export function FileContentView({
       <CenterHint
         icon={FileWarning}
         title="暂不支持预览此文件"
-        desc={`${formatBytes(file.size)} · 二进制文件不能按文本查看或编辑。`}
+        desc={`${formatFileSize(file.size)} · 二进制文件不能按文本查看或编辑。`}
       />
     )
   }

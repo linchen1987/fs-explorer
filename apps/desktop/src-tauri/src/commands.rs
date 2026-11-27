@@ -176,6 +176,16 @@ pub async fn search_project_files(
 }
 
 #[tauri::command]
+pub async fn get_project_path_size(
+    repo: String,
+    path: String,
+) -> Result<crate::files::PathSize, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::files::path_size(&repo, &path))
+        .await
+        .map_err(|e| format!("统计项目路径大小任务失败: {e}"))?
+}
+
+#[tauri::command]
 pub async fn read_project_file(
     repo: String,
     path: String,
@@ -188,18 +198,25 @@ pub async fn save_project_file(repo: String, path: String, content: String) -> R
     crate::files::save_file(&repo, &path, &content)
 }
 
-/// 将仓库内若干文件以「文件本体」形式写入系统剪贴板。
+#[tauri::command]
+pub async fn delete_project_path(repo: String, path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::files::delete_path(&repo, &path))
+        .await
+        .map_err(|e| format!("删除项目路径任务失败: {e}"))?
+}
+
+/// 将仓库内若干文件或目录以「文件本体」形式写入系统剪贴板。
 #[tauri::command]
 pub async fn copy_files_to_clipboard(repo: String, paths: Vec<String>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
         let paths: Vec<std::path::PathBuf> = paths
             .iter()
-            .map(|path| crate::files::resolve_file(&repo, path))
+            .map(|path| crate::files::resolve_copy_target(&repo, path))
             .collect::<Result<_, _>>()?;
         crate::clipboard::copy_files_to_clipboard(&paths)
     })
     .await
-    .map_err(|e| format!("复制文件任务失败: {e}"))?
+    .map_err(|e| format!("复制文件或目录任务失败: {e}"))?
 }
 
 #[tauri::command]

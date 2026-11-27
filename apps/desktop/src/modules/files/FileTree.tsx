@@ -1,5 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { confirm } from "@tauri-apps/plugin-dialog"
+import { toast } from "sonner"
 import {
+  Calculator,
   ChevronRight,
   Copy,
   File,
@@ -8,14 +11,17 @@ import {
   Film,
   Folder,
   FolderOpen,
+  HardDrive,
   Image,
   Link2,
+  LoaderCircle,
   RefreshCw,
   Search,
+  Trash2,
   X,
 } from "lucide-react"
 import type { FileSearchResult, FileTreeNode } from "@fs-explorer/core"
-import { useAsync } from "@/lib/async"
+import { errText, useAsync } from "@/lib/async"
 import { ipc } from "@/lib/ipc"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,6 +34,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { StatusBadge } from "@/components/StatusBadge"
+import { exactFileSize, formatFileSize } from "./file-size"
+import { useFileSizes } from "./useFileSizes"
 import { useFileTreeCopy } from "./useFileTreeCopy"
 
 const PAGE_SIZE = 200
@@ -64,6 +72,11 @@ interface TreeViewProps {
   onSelect: (path: string) => void
   onCopyFile: (path: string) => void
   onCopyPath: (path: string) => void
+  sizes: ReadonlyMap<string, number>
+  isMeasuring: (path: string) => boolean
+  onMeasure: (path: string) => void
+  deletingPath: string | null
+  onDeletePath: (path: string, kind: FileTreeNode["kind"]) => void
 }
 
 interface TreeNodeProps extends TreeViewProps {
@@ -81,11 +94,19 @@ function TreeNode({
   onSelect,
   onCopyFile,
   onCopyPath,
+  sizes,
+  isMeasuring,
+  onMeasure,
+  deletingPath,
+  onDeletePath,
   ...treeProps
 }: TreeNodeProps) {
   const directory = node.kind === "directory"
   const conflicted = !directory && conflictedPaths.has(node.path)
   const open = directory && expanded.has(node.path)
+  const size = sizes.get(node.path)
+  const measuring = isMeasuring(node.path)
+  const deleting = deletingPath === node.path
   const row = (
     <button
       type="button"
@@ -121,30 +142,59 @@ function TreeNode({
         <FileTypeIcon path={node.path} />
       )}
       <span className="min-w-0 truncate">{node.name}</span>
-      {conflicted && <StatusBadge status="U" className="ml-auto" />}
+      {(conflicted || measuring || deleting || size !== undefined) && (
+        <span className="ml-auto flex shrink-0 items-center gap-1.5">
+          {(measuring || deleting) && (
+            <LoaderCircle
+              className="size-3.5 animate-spin text-muted-foreground"
+              aria-label={deleting ? `正在删除${directory ? "目录" : "文件"}` : "正在计算大小"}
+            />
+          )}
+          {size !== undefined && (
+            <span
+              className="text-xs tabular-nums text-muted-foreground"
+              title={exactFileSize(size)}
+              aria-label={`${node.name}大小 ${exactFileSize(size)}`}
+            >
+              {formatFileSize(size)}
+            </span>
+          )}
+          {conflicted && <StatusBadge status="U" />}
+        </span>
+      )}
     </button>
   )
   return (
     <>
-      {directory ? row : (
-        <ContextMenu>
-          <ContextMenuTrigger asChild onContextMenu={() => onSelect(node.path)}>
-            {row}
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            <ContextMenuItem onSelect={() => onCopyFile(node.path)}>
-              <Copy />
-              复制文件
-              <ContextMenuShortcut>⌘C</ContextMenuShortcut>
-            </ContextMenuItem>
-            <ContextMenuItem onSelect={() => onCopyPath(node.path)}>
-              <Link2 />
-              复制文件路径
-              <ContextMenuShortcut>⌥⌘C</ContextMenuShortcut>
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-      )}
+      <ContextMenu>
+        <ContextMenuTrigger asChild onContextMenu={() => { if (!directory) onSelect(node.path) }}>
+          {row}
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem disabled={measuring} onSelect={() => onMeasure(node.path)}>
+            <Calculator />
+            {size === undefined ? "查看大小" : "重新计算大小"}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => onCopyFile(node.path)}>
+            <Copy />
+            {directory ? "复制目录" : "复制文件"}
+            {!directory && <ContextMenuShortcut>⌘C</ContextMenuShortcut>}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => onCopyPath(node.path)}>
+            <Link2 />
+            {directory ? "复制目录路径" : "复制文件路径"}
+            {!directory && <ContextMenuShortcut>⌥⌘C</ContextMenuShortcut>}
+          </ContextMenuItem>
+          <ContextMenuItem
+            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+            disabled={deleting}
+            onSelect={() => onDeletePath(node.path, node.kind)}
+          >
+            <Trash2 />
+            {directory ? "删除目录" : "删除文件"}
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {directory && open && (
         <DirectoryNodes
           parentPath={node.path}
@@ -156,6 +206,11 @@ function TreeNode({
           onSelect={onSelect}
           onCopyFile={onCopyFile}
           onCopyPath={onCopyPath}
+          sizes={sizes}
+          isMeasuring={isMeasuring}
+          onMeasure={onMeasure}
+          deletingPath={deletingPath}
+          onDeletePath={onDeletePath}
           {...treeProps}
         />
       )}
@@ -245,6 +300,7 @@ interface FileTreeProps {
   conflictedPaths: ReadonlySet<string>
   onSelect: (path: string) => void
   onRefresh: () => void
+  onPathDeleted: (path: string, kind: FileTreeNode["kind"]) => void
 }
 
 interface SearchResponse {
@@ -259,13 +315,23 @@ export function FileTree({
   conflictedPaths,
   onSelect,
   onRefresh,
+  onPathDeleted,
 }: FileTreeProps) {
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [rootLoading, setRootLoading] = useState(true)
+  const [deletingPath, setDeletingPath] = useState<string | null>(null)
+  const deleteGeneration = useRef(0)
+  const { sizes, measurePath, isMeasuring } = useFileSizes(repo, revision)
   const normalizedQuery = query.trim()
   const searching = normalizedQuery.length > 0
+
+  useEffect(() => {
+    deleteGeneration.current += 1
+    setDeletingPath(null)
+    return () => { deleteGeneration.current += 1 }
+  }, [repo])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS)
@@ -296,6 +362,45 @@ export function FileTree({
 
   const { treeRef, copyFile, copyPath, handleTreeKeyDown } = useFileTreeCopy({ repo, selectedPath })
 
+  async function measureAndReveal(path: string) {
+    const result = await measurePath(path)
+    if (result?.kind === "directory" && path) {
+      setExpanded((current) => new Set(current).add(path))
+    }
+  }
+
+  async function deletePath(path: string, kind: FileTreeNode["kind"]) {
+    const directory = kind === "directory"
+    const target = directory ? "目录" : "文件"
+    const currentGeneration = ++deleteGeneration.current
+    try {
+      const confirmed = await confirm(
+        directory
+          ? `确定永久删除目录「${path}」及其全部内容吗？所有文件和子目录都不会移入废纸篓，此操作无法撤销。`
+          : `确定永久删除文件「${path}」吗？文件不会移入废纸篓，此操作无法撤销。`,
+        {
+          title: `删除${target}？`,
+          kind: "warning",
+          okLabel: "永久删除",
+          cancelLabel: "取消",
+        },
+      )
+      if (!confirmed || deleteGeneration.current !== currentGeneration) return
+
+      setDeletingPath(path)
+      await ipc.deleteProjectPath(repo, path)
+      if (deleteGeneration.current !== currentGeneration) return
+      toast.success(`${target}已删除`, { description: path })
+      onPathDeleted(path, kind)
+    } catch (error) {
+      if (deleteGeneration.current === currentGeneration) {
+        toast.error(`删除${target}失败`, { description: `${path}：${errText(error)}` })
+      }
+    } finally {
+      if (deleteGeneration.current === currentGeneration) setDeletingPath(null)
+    }
+  }
+
   const treeProps: TreeViewProps = {
     repo,
     revision,
@@ -306,22 +411,51 @@ export function FileTree({
     onSelect,
     onCopyFile: copyFile,
     onCopyPath: copyPath,
+    sizes,
+    isMeasuring,
+    onMeasure: (path) => { void measureAndReveal(path) },
+    deletingPath,
+    onDeletePath: (path, kind) => { void deletePath(path, kind) },
   }
+
+  const projectSize = sizes.get("")
+  const projectMeasuring = isMeasuring("")
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-        <span className="text-sm font-medium">项目文件</span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="ml-auto"
-          title="刷新文件列表"
-          onClick={onRefresh}
-        >
-          <RefreshCw className={cn((rootLoading || (searching && search.loading)) && "animate-spin")} />
-          <span className="sr-only">刷新文件列表</span>
-        </Button>
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-sm font-medium">项目文件</span>
+          {(projectSize !== undefined || projectMeasuring) && (
+            <span
+              className="truncate text-xs tabular-nums text-muted-foreground"
+              title={projectSize === undefined ? "正在计算项目大小" : `项目大小（不含 .git）：${exactFileSize(projectSize)}`}
+            >
+              {projectSize === undefined ? "正在计算大小…" : formatFileSize(projectSize)}
+            </span>
+          )}
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="查看项目及一级子项大小"
+            aria-label="查看项目及一级子项大小"
+            disabled={projectMeasuring}
+            onClick={() => treeProps.onMeasure("")}
+          >
+            {projectMeasuring ? <LoaderCircle className="animate-spin" /> : <HardDrive />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="刷新文件列表"
+            onClick={onRefresh}
+          >
+            <RefreshCw className={cn((rootLoading || (searching && search.loading)) && "animate-spin")} />
+            <span className="sr-only">刷新文件列表</span>
+          </Button>
+        </div>
       </div>
       <div className="relative shrink-0 border-b p-2.5">
         <Search className="pointer-events-none absolute top-1/2 left-5 size-4 -translate-y-1/2 text-muted-foreground" />

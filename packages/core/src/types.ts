@@ -143,3 +143,15 @@ export interface ProjectFileContent {
   data: string | null
   mime: string | null
 }
+
+/** 按需计算的文件或目录大小；目录递归统计不包含 .git。 */
+export interface ProjectPathSizeEntry {
+  path: string
+  kind: "file" | "directory"
+  size: number
+}
+
+export interface ProjectPathSize extends ProjectPathSizeEntry {
+  /** 目录始终返回全部一级子项；文件为 null。 */
+  children: ProjectPathSizeEntry[] | null
+}

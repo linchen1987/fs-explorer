@@ -1,9 +1,9 @@
-//! 将文件以「文件本体」形式写入系统剪贴板（可像 Finder 一样粘贴）。
+//! 将文件或目录以「文件本体」形式写入系统剪贴板（可像 Finder 一样粘贴）。
 
 use std::path::PathBuf;
 
 /// macOS：通过 NSPasteboard 写入文件 URL（public.file-url），
-/// 之后即可在 Finder、桌面等处直接粘贴该文件。
+/// 之后即可在 Finder、桌面等处直接粘贴该文件或目录。
 #[cfg(target_os = "macos")]
 pub fn copy_files_to_clipboard(paths: &[PathBuf]) -> Result<(), String> {
     use objc2::rc::Retained;
@@ -21,7 +21,10 @@ pub fn copy_files_to_clipboard(paths: &[PathBuf]) -> Result<(), String> {
     let objects: Vec<Retained<ProtocolObject<dyn NSPasteboardWriting>>> = paths
         .iter()
         .map(|path| {
-            let url = NSURL::fileURLWithPath(&NSString::from_str(&path.to_string_lossy()));
+            let url = NSURL::fileURLWithPath_isDirectory(
+                &NSString::from_str(&path.to_string_lossy()),
+                path.is_dir(),
+            );
             ProtocolObject::from_retained(url)
         })
         .collect();
@@ -36,7 +39,7 @@ pub fn copy_files_to_clipboard(paths: &[PathBuf]) -> Result<(), String> {
 
 #[cfg(not(target_os = "macos"))]
 pub fn copy_files_to_clipboard(_paths: &[PathBuf]) -> Result<(), String> {
-    Err("当前平台暂不支持复制文件到剪贴板".to_string())
+    Err("当前平台暂不支持复制文件或目录到剪贴板".to_string())
 }
 
 #[cfg(test)]
